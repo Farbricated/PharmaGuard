@@ -943,7 +943,7 @@ with st.sidebar:
       <div style="font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;
            text-transform:uppercase;color:#9ca3af;margin-bottom:0.5rem;">Groq API Key</div>
     </div>""", unsafe_allow_html=True)
-    groq_api_key = st.text_input("", value=os.environ.get("GROQ_API_KEY", ""),
+    groq_api_key = st.text_input("Groq API Key", value=os.environ.get("GROQ_API_KEY", ""),
                                   type="password", label_visibility="collapsed",
                                   placeholder="gsk_...")
     st.markdown("""<div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:#9ca3af;
@@ -999,7 +999,7 @@ with tab1:
             "All Normal Wild-type": "test_all_normal_wildtype.vcf",
             "Worst Case — All Poor Metabolizers": "test_worst_case_all_pm.vcf",
         }
-        chosen_label = st.selectbox("", list(scenario_opts.keys()), label_visibility="collapsed")
+        chosen_label = st.selectbox("Test Scenario", list(scenario_opts.keys()), label_visibility="collapsed")
         chosen_file  = scenario_opts[chosen_label]
 
     with col_r:
@@ -1011,11 +1011,11 @@ with tab1:
         )
         st.markdown('<div class="section-label" style="margin-top:0.75rem;">Or type drug names</div>',
                     unsafe_allow_html=True)
-        custom_drugs = st.text_input("", placeholder="CODEINE, WARFARIN, ...",
+        custom_drugs = st.text_input("Custom drugs", placeholder="CODEINE, WARFARIN, ...",
                                       label_visibility="collapsed")
         st.markdown('<div class="section-label" style="margin-top:0.75rem;">Patient ID</div>',
                     unsafe_allow_html=True)
-        patient_id_input = st.text_input("", placeholder="Auto-generated if blank",
+        patient_id_input = st.text_input("Patient ID", placeholder="Auto-generated if blank",
                                           label_visibility="collapsed")
         c1, c2 = st.columns(2)
         with c1: run_interactions = st.checkbox("Check interactions", value=True)
@@ -1157,7 +1157,6 @@ with tab2:
                 diplo = out["pharmacogenomic_profile"]["diplotype"]
                 rows.append((drug, got, exp, ok, pheno, diplo))
                 if not ok: sc_pass = False
-            (passed if sc_pass else failed).__class__  # type hint trick — just count
             if sc_pass: passed += 1
             else:       failed += 1
             suite_results.append({"name": sc["name"], "pass": sc_pass, "rows": rows, "outputs": ao, "file": sc["file"]})
