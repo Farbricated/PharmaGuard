@@ -50,6 +50,7 @@ html, body, [class*="css"] {
     font-family: 'Geist', -apple-system, sans-serif !important;
     background: #fafafa !important;
     color: #111 !important;
+    font-size: 16px !important;
 }
 .stApp { background: #fafafa !important; }
 .main .block-container {
@@ -67,28 +68,28 @@ html, body, [class*="css"] {
 }
 .pg-wordmark {
     font-family: 'Instrument Serif', serif;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     color: #111;
     letter-spacing: -0.02em;
 }
 .pg-wordmark em { font-style: italic; color: #6b7280; }
 .pg-pill {
     font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #6b7280;
     background: #f3f4f6;
     border: 1px solid #e5e7eb;
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: 100px;
 }
 
 /* ── SECTION LABEL ── */
 .section-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #9ca3af;
     margin-bottom: 0.75rem;
@@ -116,26 +117,26 @@ html, body, [class*="css"] {
 }
 .stat-cell {
     background: #fff;
-    padding: 1.25rem 1.5rem;
+    padding: 1.35rem 1.5rem;
 }
 .stat-val {
     font-family: 'Instrument Serif', serif;
-    font-size: 2rem;
+    font-size: 2.25rem;
     color: #111;
     line-height: 1;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.3rem;
 }
 .stat-key {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.12em;
+    font-size: 0.67rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #9ca3af;
 }
 .stat-sub {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: #6b7280;
-    margin-top: 0.2rem;
+    margin-top: 0.25rem;
 }
 
 /* ── RISK CARD ── */
@@ -147,39 +148,39 @@ html, body, [class*="css"] {
     overflow: hidden;
 }
 .rcard-top {
-    padding: 1.25rem 1.5rem;
+    padding: 1.35rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid #f3f4f6;
 }
 .rcard-left { display: flex; align-items: center; gap: 0.875rem; }
-.rcard-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.rcard-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
 .rcard-name {
     font-family: 'Geist', sans-serif;
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #111;
     letter-spacing: -0.01em;
 }
 .rcard-meta {
     font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     color: #9ca3af;
-    margin-top: 2px;
+    margin-top: 3px;
     letter-spacing: 0.04em;
 }
 .rcard-badge {
     font-family: 'DM Mono', monospace;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 100px;
     border: 1px solid;
 }
-.rcard-body { padding: 1.25rem 1.5rem; }
+.rcard-body { padding: 1.35rem 1.5rem; }
 
 /* ── METRICS ── */
 .mc-row {
@@ -189,40 +190,40 @@ html, body, [class*="css"] {
     background: #f3f4f6;
     border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.35rem;
 }
 .mc-cell {
     background: #fafafa;
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.1rem;
 }
 .mc-key {
     font-family: 'DM Mono', monospace;
-    font-size: 0.55rem;
-    letter-spacing: 0.12em;
+    font-size: 0.63rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #9ca3af;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.35rem;
 }
 .mc-val {
     font-family: 'Geist', sans-serif;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 600;
     color: #111;
 }
 
 /* ── CONFIDENCE BAR ── */
-.conf-wrap { margin-bottom: 1.25rem; }
+.conf-wrap { margin-bottom: 1.35rem; }
 .conf-header {
     display: flex;
     justify-content: space-between;
     font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     letter-spacing: 0.08em;
     color: #9ca3af;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 }
 .conf-track {
-    height: 2px;
+    height: 3px;
     background: #f3f4f6;
     border-radius: 2px;
     overflow: hidden;
@@ -233,34 +234,34 @@ html, body, [class*="css"] {
 .h-rule {
     border: none;
     border-top: 1px solid #f3f4f6;
-    margin: 1.25rem 0;
+    margin: 1.35rem 0;
 }
 .inline-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #9ca3af;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.65rem;
 }
 
 /* ── VARIANT TABLE ── */
 .vtable { width: 100%; border-collapse: collapse; }
 .vtable th {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #9ca3af;
-    padding: 0 0.5rem 0.5rem;
+    padding: 0 0.6rem 0.6rem;
     text-align: left;
     border-bottom: 1px solid #f3f4f6;
 }
 .vtable td {
     font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     color: #374151;
-    padding: 0.55rem 0.5rem;
+    padding: 0.6rem 0.6rem;
     border-bottom: 1px solid #f9fafb;
 }
 .vtable tbody tr:last-child td { border-bottom: none; }
@@ -275,32 +276,32 @@ html, body, [class*="css"] {
 .rec-box {
     border-radius: 8px;
     border: 1px solid;
-    padding: 1rem 1.125rem;
-    margin-bottom: 0.875rem;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
 }
 .rec-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.45rem;
 }
 .rec-text {
-    font-size: 0.875rem;
-    line-height: 1.7;
+    font-size: 0.975rem;
+    line-height: 1.75;
     color: #374151;
 }
 
 /* ── ALT DRUGS ── */
-.alt-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.alt-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .alt-chip {
     font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     color: #374151;
     background: #f3f4f6;
     border: 1px solid #e5e7eb;
     border-radius: 100px;
-    padding: 3px 10px;
+    padding: 4px 12px;
 }
 
 /* ── AI BLOCK ── */
@@ -308,79 +309,79 @@ html, body, [class*="css"] {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     overflow: hidden;
-    margin-top: 1.25rem;
+    margin-top: 1.35rem;
 }
 .ai-header {
-    padding: 0.6rem 1rem;
+    padding: 0.7rem 1.1rem;
     background: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
 }
 .ai-badge {
     font-family: 'DM Mono', monospace;
-    font-size: 0.55rem;
-    letter-spacing: 0.1em;
+    font-size: 0.63rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #6b7280;
     background: #e5e7eb;
-    padding: 2px 8px;
+    padding: 3px 9px;
     border-radius: 4px;
 }
-.ai-section { padding: 0.875rem 1rem; border-bottom: 1px solid #f3f4f6; }
+.ai-section { padding: 1rem 1.1rem; border-bottom: 1px solid #f3f4f6; }
 .ai-section:last-child { border-bottom: none; }
 .ai-section-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #9ca3af;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.45rem;
 }
-.ai-section-text { font-size: 0.875rem; line-height: 1.75; color: #374151; }
+.ai-section-text { font-size: 0.975rem; line-height: 1.8; color: #374151; }
 
 /* ── ALERT ── */
 .alert {
     border-radius: 8px;
     border: 1px solid;
     border-left-width: 3px;
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.1rem;
     margin-bottom: 1rem;
     display: flex;
-    gap: 0.75rem;
+    gap: 0.85rem;
     align-items: flex-start;
 }
 .alert-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.3rem;
 }
-.alert-text { font-size: 0.85rem; line-height: 1.65; }
+.alert-text { font-size: 0.95rem; line-height: 1.7; }
 
 /* ── INTERACTION ── */
 .ix-row {
     display: flex;
     align-items: flex-start;
     gap: 0.875rem;
-    padding: 1rem;
+    padding: 1.1rem;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     margin-bottom: 0.5rem;
     background: #fff;
 }
-.ix-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
-.ix-title { font-size: 0.875rem; font-weight: 600; color: #111; margin-bottom: 0.25rem; }
-.ix-msg { font-size: 0.8rem; color: #6b7280; line-height: 1.6; margin-bottom: 0.4rem; }
-.ix-rec { font-size: 0.78rem; color: #374151; line-height: 1.55; }
+.ix-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.ix-title { font-size: 0.975rem; font-weight: 600; color: #111; margin-bottom: 0.3rem; }
+.ix-msg { font-size: 0.9rem; color: #6b7280; line-height: 1.65; margin-bottom: 0.45rem; }
+.ix-rec { font-size: 0.875rem; color: #374151; line-height: 1.6; }
 .ix-sev {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
+    font-size: 0.65rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 4px;
     margin-left: auto;
     flex-shrink: 0;
@@ -397,23 +398,23 @@ html, body, [class*="css"] {
 }
 .empty-icon {
     font-family: 'Instrument Serif', serif;
-    font-size: 2.5rem;
+    font-size: 2.75rem;
     color: #d1d5db;
     margin-bottom: 1rem;
 }
 .empty-title {
     font-family: 'Geist', sans-serif;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 500;
     color: #9ca3af;
     margin-bottom: 0.5rem;
 }
 .empty-hint {
     font-family: 'DM Mono', monospace;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     color: #d1d5db;
     letter-spacing: 0.06em;
-    line-height: 2;
+    line-height: 2.1;
 }
 
 /* ── TEST CARDS ── */
@@ -421,28 +422,28 @@ html, body, [class*="css"] {
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
-    padding: 1.1rem;
+    padding: 1.2rem;
 }
-.test-name { font-size: 0.85rem; font-weight: 600; color: #111; margin-bottom: 0.35rem; }
+.test-name { font-size: 0.95rem; font-weight: 600; color: #111; margin-bottom: 0.4rem; }
 .test-desc {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
+    font-size: 0.66rem;
     color: #9ca3af;
     letter-spacing: 0.04em;
-    margin-bottom: 0.75rem;
-    line-height: 1.7;
+    margin-bottom: 0.85rem;
+    line-height: 1.75;
 }
-.test-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 3px; }
+.test-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px; }
 .test-drug {
     font-family: 'DM Mono', monospace;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     color: #9ca3af;
-    width: 82px;
+    width: 90px;
     flex-shrink: 0;
 }
 .test-result {
     font-family: 'DM Mono', monospace;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     font-weight: 500;
 }
 
@@ -463,11 +464,11 @@ html, body, [class*="css"] {
 }
 .rt-hcell {
     font-family: 'DM Mono', monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.1em;
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #9ca3af;
-    padding: 0.65rem 0.75rem;
+    padding: 0.75rem 0.85rem;
 }
 .rt-row {
     display: grid;
@@ -478,9 +479,9 @@ html, body, [class*="css"] {
 .rt-row:last-child { border-bottom: none; }
 .rt-cell {
     font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     color: #374151;
-    padding: 0.65rem 0.75rem;
+    padding: 0.75rem 0.85rem;
     display: flex;
     align-items: center;
 }
@@ -495,17 +496,17 @@ html, body, [class*="css"] {
     margin-bottom: 2.5rem;
     background: #fff;
 }
-.step-item { flex: 1; padding: 0.875rem 1.25rem; border-right: 1px solid #e5e7eb; }
+.step-item { flex: 1; padding: 1rem 1.35rem; border-right: 1px solid #e5e7eb; }
 .step-item:last-child { border-right: none; }
 .step-num {
     font-family: 'DM Mono', monospace;
-    font-size: 0.55rem;
-    letter-spacing: 0.12em;
+    font-size: 0.63rem;
+    letter-spacing: 0.1em;
     color: #d1d5db;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
     text-transform: uppercase;
 }
-.step-label { font-size: 0.8rem; font-weight: 500; color: #d1d5db; }
+.step-label { font-size: 0.9rem; font-weight: 500; color: #d1d5db; }
 .step-item.active .step-num { color: #111; }
 .step-item.active .step-label { color: #111; }
 
@@ -517,8 +518,8 @@ html, body, [class*="css"] {
     border-radius: 8px !important;
     font-family: 'Geist', sans-serif !important;
     font-weight: 500 !important;
-    font-size: 0.875rem !important;
-    padding: 0.625rem 1.5rem !important;
+    font-size: 0.975rem !important;
+    padding: 0.7rem 1.75rem !important;
     letter-spacing: -0.01em !important;
     transition: opacity 0.15s !important;
 }
@@ -529,9 +530,9 @@ html, body, [class*="css"] {
     border: 1px solid #e5e7eb !important;
     border-radius: 8px !important;
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.68rem !important;
+    font-size: 0.75rem !important;
     letter-spacing: 0.04em !important;
-    padding: 0.5rem 1rem !important;
+    padding: 0.55rem 1.1rem !important;
 }
 .stDownloadButton > button:hover { border-color: #111 !important; color: #111 !important; }
 .stTabs [data-baseweb="tab-list"] {
@@ -544,11 +545,11 @@ html, body, [class*="css"] {
 }
 .stTabs [data-baseweb="tab"] {
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.65rem !important;
+    font-size: 0.72rem !important;
     letter-spacing: 0.1em !important;
     text-transform: uppercase !important;
     color: #9ca3af !important;
-    padding: 0.75rem 1.25rem !important;
+    padding: 0.85rem 1.35rem !important;
     background: transparent !important;
     border: none !important;
     border-bottom: 2px solid transparent !important;
@@ -569,29 +570,29 @@ div[data-testid="stExpander"] {
 }
 div[data-testid="stExpander"] summary {
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.65rem !important;
-    letter-spacing: 0.08em !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.07em !important;
     color: #6b7280 !important;
-    padding: 0.75rem 1rem !important;
+    padding: 0.85rem 1.1rem !important;
 }
 .stMultiSelect span[data-baseweb="tag"] {
     background: #f3f4f6 !important;
     color: #374151 !important;
     border: 1px solid #e5e7eb !important;
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.65rem !important;
+    font-size: 0.72rem !important;
     border-radius: 4px !important;
 }
 .stCheckbox label p {
     font-family: 'Geist', sans-serif !important;
-    font-size: 0.875rem !important;
+    font-size: 0.975rem !important;
     color: #374151 !important;
 }
 .stTextInput > div > div > input, .stSelectbox > div > div > div {
     border-radius: 8px !important;
     border: 1px solid #e5e7eb !important;
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.8rem !important;
+    font-size: 0.875rem !important;
     background: #fff !important;
     color: #111 !important;
 }
@@ -603,12 +604,12 @@ div[data-testid="stExpander"] summary {
 }
 [data-testid="stMetricValue"] {
     font-family: 'Instrument Serif', serif !important;
-    font-size: 2rem !important;
+    font-size: 2.25rem !important;
     color: #111 !important;
 }
 [data-testid="stMetricLabel"] {
     font-family: 'DM Mono', monospace !important;
-    font-size: 0.6rem !important;
+    font-size: 0.67rem !important;
     color: #9ca3af !important;
     letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
@@ -616,7 +617,7 @@ div[data-testid="stExpander"] summary {
 .stSuccess, .stError {
     border-radius: 8px !important;
     font-family: 'Geist', sans-serif !important;
-    font-size: 0.875rem !important;
+    font-size: 0.975rem !important;
     border: 1px solid !important;
 }
 .stSuccess { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #166534 !important; }
