@@ -81,6 +81,9 @@ def parse_vcf(file_content: str) -> Dict:
             # Extract gene info
             gene = info.get("GENE", info.get("gene", None))
             star_allele = info.get("STAR", info.get("star", None))
+            # Ensure star allele always has * prefix
+            if star_allele and not star_allele.startswith("*"):
+                star_allele = f"*{star_allele}"
             
             # Try to infer gene from rsID if not in INFO
             if not gene and rsid:

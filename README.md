@@ -172,6 +172,35 @@ pharma-guard/
 
 ---
 
+## 📖 Usage Examples
+
+### Example 1 — Poor Metabolizer Clopidogrel Risk
+1. Upload a VCF with `CYP2C19 *2/*3` variants (or use sample VCF)
+2. Select **Clopidogrel** from the drug dropdown
+3. Click **Run Pharmacogenomic Analysis**
+4. Result: `Ineffective` (HIGH severity) — system recommends Prasugrel or Ticagrelor
+
+### Example 2 — Multiple Drug Analysis
+1. Upload your VCF file
+2. Select multiple drugs: **Warfarin, Codeine, Azathioprine**
+3. Click **Run Pharmacogenomic Analysis**
+4. Each drug gets its own risk card with color-coded badge and LLM explanation
+5. Download individual JSON files or all results at once
+
+### Example 3 — Using the API Output
+The JSON output can be integrated into EHR systems:
+```python
+import json, requests
+
+result = json.load(open("pharmaguard_PATIENT_001_WARFARIN.json"))
+risk    = result["risk_assessment"]["risk_label"]        # "Adjust Dosage"
+gene    = result["pharmacogenomic_profile"]["primary_gene"]  # "CYP2C9"
+diplotype = result["pharmacogenomic_profile"]["diplotype"]   # "*2/*3"
+rec     = result["clinical_recommendation"]["dosing_recommendation"]
+```
+
+---
+
 ## 👥 Team Members
 
 - Member 1 — Name | Role
