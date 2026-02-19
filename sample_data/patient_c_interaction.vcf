@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##fileDate=20260219
+##source=PharmaGuardSampleData
+##reference=GRCh38
+##assembly=GRCh38.p14
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=STAR,Number=1,Type=String,Description="Star allele designation">
+##INFO=<ID=FUNCTION,Number=1,Type=String,Description="Predicted functional status of variant">
+##INFO=<ID=RS,Number=1,Type=String,Description="dbSNP rsID">
+##INFO=<ID=CPIC,Number=1,Type=String,Description="CPIC evidence level">
+##SAMPLE=<ID=PATIENT_C,Description="Drug Interaction Patient - CYP2C19 *2/*3 Poor Metabolizer">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr22	42522613	rs4244285	G	A	100	PASS	GENE=CYP2C19;STAR=*2;FUNCTION=no_function;CPIC=A
+chr22	42523943	rs4986893	G	A	99	PASS	GENE=CYP2C19;STAR=*3;FUNCTION=no_function;CPIC=A

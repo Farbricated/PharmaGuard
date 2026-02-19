@@ -1,8 +1,11 @@
 """
-Risk Engine for PharmaGuard v4.0
+Risk Engine for PharmaGuard v5.0
 Maps gene diplotypes -> phenotypes -> drug-specific risks
 Based on CPIC (Clinical Pharmacogenomics Implementation Consortium) guidelines
-Unchanged from v2 — risk mappings are correct and all 4 test scenarios pass.
+FIXED v5.0:
+  - SLCO1B1 diplotype phenotype values updated to standard enum: NM, IM, PM
+  - SIMVASTATIN risk table keys updated to: NM, IM, PM
+  - CPIC_RECOMMENDATIONS keys updated for SIMVASTATIN to use NM, IM, PM
 """
 
 from typing import Dict, List
@@ -33,15 +36,15 @@ DIPLOTYPE_PHENOTYPE = {
         "*1/*5": "IM",  "*1/*6": "IM",  "*5/*5": "PM",  "*6/*6": "PM",
     },
     "SLCO1B1": {
-        "*1/*1":   "Normal Function",
-        "*1/*1b":  "Normal Function",
-        "*1/*5":   "Decreased Function",
-        "*5/*1":   "Decreased Function",
-        "*1/*15":  "Decreased Function",
-        "*15/*1":  "Decreased Function",
-        "*5/*5":   "Poor Function",
-        "*5/*15":  "Poor Function",
-        "*15/*15": "Poor Function",
+        "*1/*1":   "NM",
+        "*1/*1b":  "NM",
+        "*1/*5":   "IM",
+        "*5/*1":   "IM",
+        "*1/*15":  "IM",
+        "*15/*1":  "IM",
+        "*5/*5":   "PM",
+        "*5/*15":  "PM",
+        "*15/*15": "PM",
     },
     "TPMT": {
         "*1/*1": "NM",   "*1/*2": "IM",   "*1/*3A": "IM",
@@ -117,14 +120,14 @@ DRUG_RISK_TABLE = {
     "SIMVASTATIN": {
         "gene": "SLCO1B1",
         "risks": {
-            "Normal Function":    ("Safe",          "none",     0.93,
-                                   "Normal hepatic uptake of simvastatin. Standard dosing appropriate."),
-            "Decreased Function": ("Adjust Dosage", "moderate", 0.90,
-                                   "Reduced hepatic uptake leads to higher plasma simvastatin. Increased myopathy risk. Limit dose to 20mg or consider alternative statin."),
-            "Poor Function":      ("Toxic",         "high",     0.95,
-                                   "Severely impaired hepatic uptake. Very high risk of myopathy and rhabdomyolysis. Avoid simvastatin. Use pravastatin or rosuvastatin."),
-            "Unknown":            ("Unknown",       "low",      0.50,
-                                   "Phenotype unknown. Monitor for muscle pain and weakness."),
+            "NM": ("Safe",          "none",     0.93,
+                   "Normal hepatic uptake of simvastatin. Standard dosing appropriate."),
+            "IM": ("Adjust Dosage", "moderate", 0.90,
+                   "Reduced hepatic uptake leads to higher plasma simvastatin. Increased myopathy risk. Limit dose to 20mg or consider alternative statin."),
+            "PM": ("Toxic",         "high",     0.95,
+                   "Severely impaired hepatic uptake. Very high risk of myopathy and rhabdomyolysis. Avoid simvastatin. Use pravastatin or rosuvastatin."),
+            "Unknown": ("Unknown",  "low",      0.50,
+                        "Phenotype unknown. Monitor for muscle pain and weakness."),
         },
     },
     "AZATHIOPRINE": {
@@ -161,18 +164,18 @@ CPIC_RECOMMENDATIONS = {
     ("CODEINE", "NM"):    "Use label-recommended dosing.",
     ("CODEINE", "URM"):   "Avoid codeine. Life-threatening respiratory depression risk. Use non-opioid or alternative opioid.",
     ("CODEINE", "RM"):    "Use label-recommended dosing. Monitor for opioid side effects.",
-    ("WARFARIN", "NM"):   "Use standard ACCP/CPIC dosing algorithm. Target INR 2.0–3.0.",
-    ("WARFARIN", "IM"):   "Initiate at 25–50% lower dose. Increase INR monitoring frequency. Use clinical decision support tools.",
-    ("WARFARIN", "PM"):   "Initiate at 50–75% lower dose. Very frequent INR monitoring. Consider haematology consult.",
+    ("WARFARIN", "NM"):   "Use standard ACCP/CPIC dosing algorithm. Target INR 2.0-3.0.",
+    ("WARFARIN", "IM"):   "Initiate at 25-50% lower dose. Increase INR monitoring frequency. Use clinical decision support tools.",
+    ("WARFARIN", "PM"):   "Initiate at 50-75% lower dose. Very frequent INR monitoring. Consider haematology consult.",
     ("CLOPIDOGREL", "PM"):  "Use alternative antiplatelet: prasugrel (if no contraindication) or ticagrelor.",
     ("CLOPIDOGREL", "IM"):  "Consider alternative antiplatelet therapy, especially for high-risk ACS/PCI patients.",
     ("CLOPIDOGREL", "NM"):  "Use label-recommended dosing (75 mg/day maintenance).",
     ("CLOPIDOGREL", "URM"): "Use label-recommended dosing. Monitor for bleeding.",
-    ("SIMVASTATIN", "Normal Function"):    "Use label-recommended dosing. Max 40 mg/day.",
-    ("SIMVASTATIN", "Decreased Function"): "Limit dose to 20 mg/day. Consider switching to pravastatin, rosuvastatin, or fluvastatin.",
-    ("SIMVASTATIN", "Poor Function"):      "Avoid simvastatin. Use pravastatin 40 mg or rosuvastatin 20 mg.",
-    ("AZATHIOPRINE", "NM"):  "Use standard dosing (2–3 mg/kg/day). Monitor CBC monthly.",
-    ("AZATHIOPRINE", "IM"):  "Reduce dose by 30–70%. Monitor CBC every 2 weeks for first 3 months.",
+    ("SIMVASTATIN", "NM"):  "Use label-recommended dosing. Max 40 mg/day.",
+    ("SIMVASTATIN", "IM"):  "Limit dose to 20 mg/day. Consider switching to pravastatin, rosuvastatin, or fluvastatin.",
+    ("SIMVASTATIN", "PM"):  "Avoid simvastatin. Use pravastatin 40 mg or rosuvastatin 20 mg.",
+    ("AZATHIOPRINE", "NM"):  "Use standard dosing (2-3 mg/kg/day). Monitor CBC monthly.",
+    ("AZATHIOPRINE", "IM"):  "Reduce dose by 30-70%. Monitor CBC every 2 weeks for first 3 months.",
     ("AZATHIOPRINE", "PM"):  "Reduce dose by 90% or use alternative. Weekly CBC monitoring mandatory.",
     ("FLUOROURACIL", "NM"):  "Use label-recommended dosing.",
     ("FLUOROURACIL", "IM"):  "Reduce starting dose by 50%. Escalate based on tolerance. Monitor for severe toxicity.",

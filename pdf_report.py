@@ -1,6 +1,7 @@
 """
-PDF Report Generator for PharmaGuard v4.0
-Unchanged from v2 — logic is correct and professional.
+PDF Report Generator for PharmaGuard v5.0
+FIXED: Replaced all Unicode special characters (en-dash, em-dash, etc.)
+       with ASCII equivalents to fix fpdf2 helvetica font compatibility.
 """
 
 from fpdf import FPDF
@@ -23,6 +24,37 @@ SEVERITY_COLORS = {
 }
 
 
+def _safe(text: str) -> str:
+    """Replace Unicode characters that Helvetica cannot render with ASCII equivalents."""
+    if not text:
+        return ""
+    replacements = {
+        "\u2013": "-",   # en-dash
+        "\u2014": "--",  # em-dash
+        "\u2018": "'",   # left single quote
+        "\u2019": "'",   # right single quote
+        "\u201c": '"',   # left double quote
+        "\u201d": '"',   # right double quote
+        "\u2022": "*",   # bullet
+        "\u00b0": " deg",# degree sign
+        "\u00b1": "+/-", # plus-minus
+        "\u00d7": "x",   # multiplication sign
+        "\u2265": ">=",  # greater than or equal
+        "\u2264": "<=",  # less than or equal
+        "\u03b1": "alpha",
+        "\u03b2": "beta",
+        "\u00e9": "e",   # e acute
+        "\u00e0": "a",   # a grave
+        "\u00fc": "u",   # u umlaut
+        "\u2192": "->",  # right arrow
+        "\u00b5": "u",   # mu
+    }
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+    # Remove any remaining non-latin-1 characters
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 class PharmaGuardPDF(FPDF):
     def __init__(self):
         super().__init__()
@@ -39,7 +71,7 @@ class PharmaGuardPDF(FPDF):
         self.set_font("Helvetica", "", 8)
         self.set_text_color(148, 163, 184)
         self.set_xy(10, 14)
-        self.cell(0, 6, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | RIFT 2026 | v4.0", ln=True)
+        self.cell(0, 6, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | RIFT 2026 | v5.0", ln=True)
         self.ln(8)
 
     def footer(self):
@@ -57,17 +89,17 @@ class PharmaGuardPDF(FPDF):
         self.set_fill_color(*color)
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "B", 10)
-        self.cell(0, 8, f"  {title}", ln=True, fill=True)
+        self.cell(0, 8, f"  {_safe(title)}", ln=True, fill=True)
         self.ln(2)
         self.set_text_color(0, 0, 0)
 
     def key_value(self, key, value, bold_val=False):
         self.set_font("Helvetica", "B", 9)
         self.set_text_color(71, 85, 105)
-        self.cell(55, 6, key + ":", ln=False)
+        self.cell(55, 6, _safe(key) + ":", ln=False)
         self.set_font("Helvetica", "B" if bold_val else "", 9)
         self.set_text_color(15, 23, 42)
-        self.cell(0, 6, str(value), ln=True)
+        self.cell(0, 6, _safe(str(value)), ln=True)
 
     def alert_box(self, text, severity="high"):
         colors = {
@@ -85,7 +117,7 @@ class PharmaGuardPDF(FPDF):
         self.set_xy(x + 7, y + 3)
         self.set_font("Helvetica", "B", 8)
         self.set_text_color(254, 226, 226)
-        self.multi_cell(170, 4.5, f"CLINICAL ALERT: {text}")
+        self.multi_cell(170, 4.5, f"CLINICAL ALERT: {_safe(text)}")
         self.ln(4)
         self.set_text_color(0, 0, 0)
 
@@ -104,7 +136,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
     pdf.set_x(18)
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(71, 85, 105)
-    pdf.cell(60, 7, f"Patient ID: {patient_id}", ln=False)
+    pdf.cell(60, 7, f"Patient ID: {_safe(patient_id)}", ln=False)
     pdf.cell(60, 7, f"Genes Analyzed: {len(parsed_vcf.get('detected_genes', []))}/6", ln=False)
     pdf.cell(0,  7, f"Drugs Evaluated: {len(all_outputs)}", ln=True)
     pdf.set_x(18)
@@ -172,18 +204,16 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
             pdf.set_font("Helvetica", "B", 8)
             pdf.set_fill_color(30, 41, 59)
             pdf.set_text_color(255, 255, 255)
-            pdf.cell(35, 6, "  rsID",          fill=True)
-            pdf.cell(25, 6, "Star Allele",     fill=True)
-            pdf.cell(20, 6, "REF>ALT",         fill=True)
+            pdf.cell(35, 6, "  rsID",           fill=True)
+            pdf.cell(25, 6, "Star Allele",      fill=True)
             pdf.cell(0,  6, "Functional Status", fill=True, ln=True)
             for j, v in enumerate(variants[:6]):
                 pdf.set_fill_color(248, 250, 252) if j % 2 == 0 else pdf.set_fill_color(241, 245, 249)
                 pdf.set_text_color(15, 23, 42)
                 pdf.set_font("Helvetica", "", 8)
-                pdf.cell(35, 5.5, f"  {v.get('rsid','N/A')}",        fill=True)
-                pdf.cell(25, 5.5, v.get("star_allele","N/A"),         fill=True)
-                pdf.cell(20, 5.5, f"{v.get('ref','?')}>{v.get('alt','?')}", fill=True)
-                pdf.cell(0,  5.5, v.get("functional_status","Unknown"), fill=True, ln=True)
+                pdf.cell(35, 5.5, f"  {_safe(v.get('rsid', 'N/A'))}",    fill=True)
+                pdf.cell(25, 5.5, _safe(v.get("star_allele", "N/A")),    fill=True)
+                pdf.cell(0,  5.5, _safe(v.get("functional_status", "Unknown")), fill=True, ln=True)
             pdf.ln(3)
 
         if exp.get("summary"):
@@ -191,7 +221,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
             model_label = "Static Template" if "static" in model_used.lower() else f"AI ({model_used})"
             pdf.set_font("Helvetica", "B", 8)
             pdf.set_text_color(59, 130, 246)
-            pdf.cell(0, 5, f"CLINICAL EXPLANATION ({model_label})", ln=True)
+            pdf.cell(0, 5, f"CLINICAL EXPLANATION ({_safe(model_label)})", ln=True)
             for label, text in [
                 ("Summary",               exp.get("summary", "")),
                 ("Biological Mechanism",  exp.get("biological_mechanism", "")),
@@ -204,7 +234,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
                     pdf.cell(0, 5, label, ln=True)
                     pdf.set_font("Helvetica", "", 8)
                     pdf.set_text_color(51, 65, 85)
-                    pdf.multi_cell(0, 4.5, text)
+                    pdf.multi_cell(0, 4.5, _safe(text))
                     pdf.ln(1)
 
         pdf.set_font("Helvetica", "B", 8)
@@ -212,7 +242,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
         pdf.cell(0, 5, "CPIC DOSING RECOMMENDATION", ln=True)
         pdf.set_font("Helvetica", "", 8)
         pdf.set_text_color(15, 23, 42)
-        pdf.multi_cell(0, 4.5, output["clinical_recommendation"]["dosing_recommendation"])
+        pdf.multi_cell(0, 4.5, _safe(output["clinical_recommendation"]["dosing_recommendation"]))
         alts = output["clinical_recommendation"].get("alternative_drugs", [])
         if alts:
             pdf.set_font("Helvetica", "B", 8)
@@ -220,7 +250,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
             pdf.cell(30, 5, "Alternatives:", ln=False)
             pdf.set_font("Helvetica", "", 8)
             pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 5, ", ".join(alts), ln=True)
+            pdf.cell(0, 5, _safe(", ".join(alts)), ln=True)
         pdf.ln(6)
         pdf.set_draw_color(203, 213, 225)
         pdf.line(15, pdf.get_y(), 195, pdf.get_y())
@@ -232,7 +262,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(30, 41, 59)
     pdf.multi_cell(0, 5.5,
-        "This report has been generated by PharmaGuard v4.0, an AI-powered pharmacogenomics research tool "
+        "This report has been generated by PharmaGuard v5.0, an AI-powered pharmacogenomics research tool "
         "developed for the RIFT 2026 Hackathon. Risk assessments are based on CPIC guidelines "
         "and LLM-generated or pre-validated static explanations.\n\n"
         "THIS REPORT IS NOT A MEDICAL DEVICE AND SHOULD NOT BE USED FOR CLINICAL DECISION-MAKING "

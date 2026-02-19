@@ -1,18 +1,23 @@
 """
-PharmaGuard — Pharmacogenomic Risk Prediction System
-RIFT 2026 Hackathon | v5.0  ★ WOW EDITION ★
-New in v5.0:
-  - Drug × Gene Risk Heatmap (interactive color matrix)
-  - Polygenic Risk Score (0-100 composite patient score)
-  - Patient Plain-English Mode toggle (jargon → language anyone understands)
-  - Chromosome Visualization (shows where variants live on chromosomes)
-  - Population Frequency bars (how rare is this patient's genotype?)
-  - Test suite runs in PARALLEL (ThreadPoolExecutor) — instant results
-  - Glowing risk dots, animated confidence bars
+PharmaGuard v6.0 — All New Features Edition
+New in v6.0:
+  - Feature 1: 4 Patient Persona Quick Demo Buttons
+  - Feature 2: Overall Risk Command Center Banner
+  - Feature 3: Emergency Alert Box for Critical Drugs
+  - Feature 4: Gene Activity Heatmap (6 genes)
+  - Feature 5: Drug Risk Comparison Table with CSV download
+  - Feature 6: Drug Interaction Matrix
+  - Feature 7: AI Unified Patient Narrative
+  - Feature 8: CPIC Evidence Level Badges
+  - Feature 9: Confidence Meter Progress Bars
+  - Feature 10: JSON + PDF Download Buttons per drug
+  Plus all v5.0 features: Polygenic Score, Drug x Gene Heatmap,
+  Chromosome Viz, Population Frequency, Patient Mode, Parallel Tests
 """
 
 import streamlit as st
-import json, uuid, os
+import json, uuid, os, io
+import pandas as pd
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
@@ -21,7 +26,7 @@ load_dotenv()
 
 from vcf_parser import parse_vcf, get_sample_vcf
 from risk_engine import run_risk_assessment, get_overall_severity, DRUG_RISK_TABLE
-from llm_explainer import generate_all_explanations
+from llm_explainer import generate_all_explanations, generate_patient_narrative
 from schema import build_output_schema
 from drug_interactions import run_interaction_analysis
 from pdf_report import generate_pdf_report
@@ -35,11 +40,11 @@ GENE_DRUG_MAP = {
 SEV_RANK = {"none": 0, "low": 1, "moderate": 2, "high": 3, "critical": 4}
 
 RISK_CONFIG = {
-    "Safe":          {"dot": "#22c55e", "text": "#16a34a", "bg": "#f0fdf4", "border": "#bbf7d0", "label": "Safe"},
-    "Adjust Dosage": {"dot": "#f59e0b", "text": "#b45309", "bg": "#fffbeb", "border": "#fde68a", "label": "Adjust"},
-    "Toxic":         {"dot": "#ef4444", "text": "#b91c1c", "bg": "#fef2f2", "border": "#fecaca", "label": "Toxic"},
-    "Ineffective":   {"dot": "#8b5cf6", "text": "#7c3aed", "bg": "#f5f3ff", "border": "#ddd6fe", "label": "Ineffective"},
-    "Unknown":       {"dot": "#94a3b8", "text": "#64748b", "bg": "#f8fafc", "border": "#e2e8f0", "label": "Unknown"},
+    "Safe":          {"dot": "#22c55e", "text": "#16a34a", "bg": "#f0fdf4", "border": "#bbf7d0", "label": "Safe",        "emoji": "✅"},
+    "Adjust Dosage": {"dot": "#f59e0b", "text": "#b45309", "bg": "#fffbeb", "border": "#fde68a", "label": "Adjust",      "emoji": "⚠️"},
+    "Toxic":         {"dot": "#ef4444", "text": "#b91c1c", "bg": "#fef2f2", "border": "#fecaca", "label": "Toxic",        "emoji": "☠️"},
+    "Ineffective":   {"dot": "#8b5cf6", "text": "#7c3aed", "bg": "#f5f3ff", "border": "#ddd6fe", "label": "Ineffective",  "emoji": "❌"},
+    "Unknown":       {"dot": "#94a3b8", "text": "#64748b", "bg": "#f8fafc", "border": "#e2e8f0", "label": "Unknown",      "emoji": "❓"},
 }
 
 HEATMAP_COLORS = {
@@ -51,11 +56,20 @@ HEATMAP_COLORS = {
     "N/A":           {"bg": "#0a0a0a", "text": "#1f2937", "border": "#111827"},
 }
 
+PHENOTYPE_GENE_COLORS = {
+    "PM":      {"bg": "#7f1d1d", "text": "#fca5a5", "label": "Poor Metabolizer"},
+    "IM":      {"bg": "#7c2d12", "text": "#fdba74", "label": "Intermediate Metabolizer"},
+    "NM":      {"bg": "#14532d", "text": "#86efac", "label": "Normal Metabolizer"},
+    "URM":     {"bg": "#78350f", "text": "#fcd34d", "label": "Ultrarapid Metabolizer"},
+    "RM":      {"bg": "#1e3a5f", "text": "#93c5fd", "label": "Rapid Metabolizer"},
+    "Unknown": {"bg": "#1f2937", "text": "#9ca3af", "label": "Unknown"},
+}
+
 POPULATION_FREQUENCY = {
     "CYP2D6":  {"PM": 7, "IM": 10, "NM": 77, "URM": 6},
     "CYP2C19": {"PM": 3, "IM": 26, "NM": 52, "RM": 13, "URM": 6},
     "CYP2C9":  {"PM": 1, "IM": 10, "NM": 89},
-    "SLCO1B1": {"Poor Function": 1, "Decreased Function": 15, "Normal Function": 84},
+    "SLCO1B1": {"PM": 1, "IM": 15, "NM": 84},
     "TPMT":    {"PM": 0.3, "IM": 10, "NM": 90},
     "DPYD":    {"PM": 0.2, "IM": 3, "NM": 97},
 }
@@ -76,14 +90,12 @@ PLAIN_ENGLISH_PHENOTYPE = {
     "NM":  "Your body processes this medicine normally",
     "RM":  "Your body processes this medicine slightly faster than average",
     "URM": "Your body processes this medicine dangerously fast",
-    "Normal Function":    "Your gene works normally",
-    "Decreased Function": "Your gene works at reduced capacity",
-    "Poor Function":      "Your gene barely works",
+    "Unknown": "Gene function unclear",
 }
 
 RISK_PLAIN_ENGLISH = {
     ("CODEINE", "PM"):  "Your body can't convert codeine into a painkiller. You'd take it and feel nothing — or it could harm you.",
-    ("CODEINE", "URM"): "Your body converts codeine to morphine 5× faster than normal. Even one tablet could stop your breathing.",
+    ("CODEINE", "URM"): "Your body converts codeine to morphine 5x faster than normal. Even one tablet could stop your breathing.",
     ("CODEINE", "IM"):  "Codeine may work less well for you. Your doctor may need to try a different painkiller.",
     ("CODEINE", "NM"):  "Codeine works normally for you. Standard doses should control your pain.",
     ("WARFARIN", "PM"): "Your blood stays thin much longer than normal. Standard doses could cause dangerous bleeding.",
@@ -92,9 +104,9 @@ RISK_PLAIN_ENGLISH = {
     ("CLOPIDOGREL", "PM"):  "This heart medication doesn't get activated in your body. It won't prevent blood clots — you need a different drug.",
     ("CLOPIDOGREL", "IM"):  "This heart medication activates less than normal. You may need a stronger alternative.",
     ("CLOPIDOGREL", "NM"):  "This heart medication works normally for you.",
-    ("SIMVASTATIN", "Poor Function"):      "This cholesterol drug builds up in your muscles — dangerous. You need a different medication.",
-    ("SIMVASTATIN", "Decreased Function"): "This cholesterol drug clears more slowly. A lower dose protects your muscles.",
-    ("SIMVASTATIN", "Normal Function"):    "This cholesterol drug works normally for you.",
+    ("SIMVASTATIN", "PM"):  "This cholesterol drug builds up in your muscles — dangerous. You need a different medication.",
+    ("SIMVASTATIN", "IM"):  "This cholesterol drug clears more slowly. A lower dose protects your muscles.",
+    ("SIMVASTATIN", "NM"):  "This cholesterol drug works normally for you.",
     ("AZATHIOPRINE", "PM"): "Your immune system drug builds up to toxic levels. Standard doses would damage your bone marrow.",
     ("AZATHIOPRINE", "IM"): "You need a lower dose of this immune drug or your bone marrow could be affected.",
     ("AZATHIOPRINE", "NM"): "This immune drug works normally for you.",
@@ -111,6 +123,43 @@ SEV_PALETTE = {
 }
 IX_PALETTE = {"low": "#f59e0b", "moderate": "#f97316", "high": "#ef4444", "critical": "#dc2626"}
 
+CPIC_GENE_DRUG = {
+    "CYP2D6":  "CODEINE",
+    "CYP2C9":  "WARFARIN",
+    "CYP2C19": "CLOPIDOGREL",
+    "SLCO1B1": "SIMVASTATIN",
+    "TPMT":    "AZATHIOPRINE",
+    "DPYD":    "FLUOROURACIL",
+}
+
+# ── Patient Persona Quick-Load Data ──────────────────────────────────────────
+PERSONAS = {
+    "A": {
+        "label": "🚨 Patient A — Critical Risk",
+        "file": "patient_a_critical.vcf",
+        "drugs": ["CODEINE", "FLUOROURACIL", "AZATHIOPRINE"],
+        "desc": "CYP2D6 *4/*4 PM + DPYD *2A/*13 PM + TPMT *3B PM",
+    },
+    "B": {
+        "label": "⚠️ Patient B — Warfarin PM",
+        "file": "patient_b_warfarin.vcf",
+        "drugs": ["WARFARIN"],
+        "desc": "CYP2C9 *2/*3 Poor Metabolizer",
+    },
+    "C": {
+        "label": "💊 Patient C — Drug Interaction",
+        "file": "patient_c_interaction.vcf",
+        "drugs": ["CLOPIDOGREL"],
+        "desc": "CYP2C19 *2/*3 Poor Metabolizer",
+    },
+    "D": {
+        "label": "✅ Patient D — All Safe",
+        "file": "patient_d_safe.vcf",
+        "drugs": ["CODEINE", "WARFARIN", "SIMVASTATIN"],
+        "desc": "Wildtype *1/*1 across CYP2D6, CYP2C19, CYP2C9",
+    },
+}
+
 # ── CSS ──────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="PharmaGuard", page_icon="⬡", layout="wide", initial_sidebar_state="collapsed")
 
@@ -124,13 +173,78 @@ html,body,[class*="css"]{font-family:'Geist',-apple-system,sans-serif!important;
 #MainMenu,footer,header{visibility:hidden;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 @keyframes glow{0%,100%{box-shadow:0 0 6px var(--c);}50%{box-shadow:0 0 18px var(--c);}}
+@keyframes criticalPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4);}50%{box-shadow:0 0 0 8px rgba(220,38,38,0);}}
 
 /* NAV */
-.pg-nav{padding:2rem 0 2.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a;margin-bottom:3rem;}
+.pg-nav{padding:2rem 0 2.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a;margin-bottom:2rem;}
 .pg-wordmark{font-family:'Instrument Serif',serif;font-size:1.75rem;color:#f0f0f0;letter-spacing:-0.02em;}
 .pg-wordmark em{font-style:italic;color:#6b7280;}
 .pg-pill{font-family:'DM Mono',monospace;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;background:#1a1a1a;border:1px solid #2a2a2a;padding:5px 12px;border-radius:100px;}
 .pg-pill-hot{background:#7c3aed18;border-color:#7c3aed;color:#a78bfa;}
+
+/* PERSONA BUTTONS */
+.persona-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:2rem;}
+.persona-btn{border-radius:10px;border:1px solid;padding:0.875rem 1rem;cursor:pointer;transition:all .15s;text-align:center;}
+.persona-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.4);}
+.persona-label{font-family:'Geist',sans-serif;font-size:0.875rem;font-weight:600;margin-bottom:0.25rem;}
+.persona-desc{font-family:'DM Mono',monospace;font-size:0.58rem;letter-spacing:0.04em;opacity:0.7;}
+
+/* RISK COMMAND CENTER BANNER */
+.risk-banner{border-radius:16px;padding:1.5rem 2rem;margin-bottom:1.5rem;border:1px solid;position:relative;overflow:hidden;}
+.risk-banner::before{content:'';position:absolute;top:-30%;right:-10%;width:200px;height:200px;border-radius:50%;opacity:0.05;pointer-events:none;}
+.risk-banner-title{font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.5rem;opacity:0.7;}
+.risk-banner-level{font-family:'Instrument Serif',serif;font-size:2.5rem;line-height:1;margin-bottom:0.25rem;}
+.risk-banner-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1rem;}
+.risk-banner-stat{text-align:center;}
+.risk-banner-num{font-family:'Instrument Serif',serif;font-size:1.75rem;line-height:1;}
+.risk-banner-key{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;opacity:0.6;margin-top:0.2rem;}
+
+/* EMERGENCY ALERT */
+.emergency-alert{background:#1a0505;border:2px solid #dc2626;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem;animation:criticalPulse 2s infinite;}
+.emergency-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;}
+.emergency-icon{font-size:1.4rem;}
+.emergency-drug{font-family:'Geist',sans-serif;font-size:1.1rem;font-weight:700;color:#fca5a5;}
+.emergency-note{font-size:0.925rem;color:#fca5a5;line-height:1.6;margin-bottom:0.5rem;}
+.emergency-cta{font-family:'DM Mono',monospace;font-size:0.75rem;letter-spacing:0.06em;color:#ef4444;font-weight:600;text-transform:uppercase;}
+
+/* GENE ACTIVITY HEATMAP */
+.gene-heatmap{display:grid;grid-template-columns:repeat(6,1fr);gap:0.5rem;margin-bottom:1.5rem;}
+.gene-box{border-radius:10px;padding:1rem 0.75rem;text-align:center;border:1px solid;}
+.gene-box-name{font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:600;margin-bottom:0.4rem;}
+.gene-activity-bar{height:4px;border-radius:2px;margin:0.4rem 0;}
+.gene-box-phenotype{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.05em;}
+
+/* DRUG COMPARISON TABLE */
+.drug-table-wrap{border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;margin-bottom:1.5rem;}
+.drug-table-header{display:grid;grid-template-columns:1.2fr 1.2fr 1fr 1fr 1fr 1fr;background:#0a0a0a;border-bottom:1px solid #1e1e1e;padding:0 0.5rem;}
+.drug-table-hcell{font-family:'DM Mono',monospace;font-size:0.63rem;letter-spacing:0.09em;text-transform:uppercase;color:#484848;padding:0.75rem 0.85rem;}
+.drug-table-row{display:grid;grid-template-columns:1.2fr 1.2fr 1fr 1fr 1fr 1fr;border-bottom:1px solid #141414;padding:0 0.5rem;background:#111;}
+.drug-table-row:last-child{border-bottom:none;}
+.drug-table-cell{font-family:'DM Mono',monospace;font-size:0.78rem;color:#909090;padding:0.75rem 0.85rem;display:flex;align-items:center;}
+
+/* INTERACTION MATRIX */
+.ix-matrix{border-radius:10px;overflow:auto;margin-bottom:1.5rem;}
+.ix-matrix-grid{display:grid;gap:3px;}
+.ix-matrix-cell{border-radius:4px;display:flex;align-items:center;justify-content:center;min-height:48px;font-family:'DM Mono',monospace;font-size:0.6rem;text-align:center;padding:0.3rem;cursor:pointer;transition:transform .1s;}
+.ix-matrix-cell:hover{transform:scale(1.05);z-index:5;position:relative;}
+.ix-matrix-header{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;color:#6b7280;display:flex;align-items:center;justify-content:center;min-height:48px;}
+
+/* AI NARRATIVE BOX */
+.ai-narrative{background:linear-gradient(135deg,#0a0a1a 0%,#0f0a1e 100%);border:1px solid #2a1a4a;border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;}
+.ai-narrative-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;}
+.ai-narrative-badge{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;background:#1e0a3a;border:1px solid #4c1d95;color:#a78bfa;padding:3px 10px;border-radius:4px;}
+.ai-narrative-title{font-family:'Geist',sans-serif;font-size:0.95rem;font-weight:600;color:#c4b5fd;}
+.ai-narrative-text{font-size:0.975rem;line-height:1.85;color:#b0b0c0;}
+
+/* CPIC BADGE */
+.cpic-badge{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.05em;background:#1a0a05;border:1px solid #92400e;color:#fbbf24;padding:2px 8px;border-radius:4px;display:inline-block;margin-left:0.5rem;}
+
+/* CONFIDENCE BARS (enhanced) */
+.conf-dual{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;}
+.conf-item{}
+.conf-label{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;color:#484848;margin-bottom:5px;display:flex;justify-content:space-between;}
+.conf-track{height:4px;background:#1e1e1e;border-radius:2px;overflow:hidden;}
+.conf-fill{height:100%;border-radius:2px;transition:width .6s ease;}
 
 /* POLYGENIC SCORE */
 .pgx-wrap{background:linear-gradient(135deg,#0f0f23 0%,#1a0a2e 50%,#0a1628 100%);border:1px solid #2a2a4a;border-radius:16px;padding:2rem;margin-bottom:1.5rem;position:relative;overflow:hidden;}
@@ -168,7 +282,7 @@ html,body,[class*="css"]{font-family:'Geist',-apple-system,sans-serif!important;
 .chrom-gene{font-family:'DM Mono',monospace;font-size:0.58rem;color:#9ca3af;width:58px;flex-shrink:0;}
 .chrom-band{font-family:'DM Mono',monospace;font-size:0.58rem;color:#4b4b4b;}
 
-/* POPULATION FREQUENCY */
+/* POP FREQ */
 .pop-wrap{background:#0e0e0e;border:1px solid #1a1a1a;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem;}
 .pop-title{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:#484848;margin-bottom:0.5rem;}
 .pop-row{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.4rem;}
@@ -177,16 +291,6 @@ html,body,[class*="css"]{font-family:'Geist',-apple-system,sans-serif!important;
 .pop-fill{height:100%;border-radius:3px;}
 .pop-pct{font-family:'DM Mono',monospace;font-size:0.63rem;color:#4b4b4b;width:32px;text-align:right;}
 .pop-you{font-family:'DM Mono',monospace;font-size:0.56rem;color:#f59e0b;margin-left:4px;}
-
-/* PATIENT MODE */
-.pt-header{border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;border:2px solid;}
-.pt-card{border-radius:14px;padding:1.5rem;margin-bottom:1rem;border:1px solid;}
-.pt-drug{font-size:1.35rem;font-weight:700;color:#f0f0f0;margin-bottom:0.25rem;}
-.pt-verdict{font-size:1.1rem;line-height:1.6;margin-bottom:0.6rem;}
-.pt-pheno{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;margin-bottom:0.6rem;}
-.pt-explain{font-size:0.92rem;line-height:1.8;color:#9ca3af;}
-.pt-action{display:flex;align-items:flex-start;gap:0.6rem;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:0.875rem 1rem;margin-top:0.75rem;}
-.pt-action-text{font-size:0.9rem;color:#e0e0e0;line-height:1.6;}
 
 /* STATS */
 .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#1e1e1e;border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;margin-bottom:1.5rem;}
@@ -208,10 +312,6 @@ html,body,[class*="css"]{font-family:'Geist',-apple-system,sans-serif!important;
 .mc-cell{background:#0e0e0e;padding:1rem 1.1rem;}
 .mc-key{font-family:'DM Mono',monospace;font-size:0.63rem;letter-spacing:0.1em;text-transform:uppercase;color:#484848;margin-bottom:0.35rem;}
 .mc-val{font-family:'Geist',sans-serif;font-size:1.05rem;font-weight:600;color:#e8e8e8;}
-.conf-wrap{margin-bottom:1.35rem;}
-.conf-header{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.08em;color:#484848;margin-bottom:7px;}
-.conf-track{height:3px;background:#1e1e1e;border-radius:2px;overflow:hidden;}
-.conf-fill{height:100%;border-radius:2px;}
 .h-rule{border:none;border-top:1px solid #1e1e1e;margin:1.35rem 0;}
 .inline-label{font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:#484848;margin-bottom:0.65rem;}
 .section-label{font-family:'DM Mono',monospace;font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;margin-bottom:0.75rem;}
@@ -358,7 +458,7 @@ def render_polygenic_score(all_outputs):
         pills += f'<span class="pgx-pill" style="background:{rc["bg"]};border-color:{rc["border"]};color:{rc["text"]};">{gene} · {pheno}</span>'
     st.markdown(f"""
     <div class="pgx-wrap">
-      <div class="pgx-title">⬡ Polygenic Risk Score</div>
+      <div class="pgx-title">Polygenic Risk Score</div>
       <div class="pgx-score" style="color:{color};">{score}</div>
       <div class="pgx-label">{label} — composite across {len(all_outputs)} drug{"s" if len(all_outputs)!=1 else ""} &amp; genes</div>
       <div class="pgx-track"><div class="pgx-fill" style="width:{score}%;background:linear-gradient(90deg,{color}88,{color});box-shadow:0 0 12px {color}55;"></div></div>
@@ -368,10 +468,10 @@ def render_polygenic_score(all_outputs):
 
 
 # ══════════════════════════════════════════════════════════════
-# FEATURE 2 — DRUG × GENE HEATMAP
+# FEATURE 2 — DRUG x GENE HEATMAP
 # ══════════════════════════════════════════════════════════════
 
-def render_heatmap(all_outputs):
+def render_drug_gene_heatmap(all_outputs):
     DRUG_ORDER = ["CODEINE","WARFARIN","CLOPIDOGREL","SIMVASTATIN","AZATHIOPRINE","FLUOROURACIL"]
     GENE_ORDER = ["CYP2D6","CYP2C9","CYP2C19","SLCO1B1","TPMT","DPYD"]
     DG = {"CODEINE":"CYP2D6","WARFARIN":"CYP2C9","CLOPIDOGREL":"CYP2C19",
@@ -392,14 +492,14 @@ def render_heatmap(all_outputs):
                 ph  = out["pharmacogenomic_profile"]["phenotype"]
                 rc  = HEATMAP_COLORS.get(rl, HEATMAP_COLORS["Unknown"])
                 sh  = {"Adjust Dosage":"Adjust","Ineffective":"Ineffect.","Unknown":"?"}.get(rl, rl)
-                rows += f'<div class="hm-cell" style="background:{rc["bg"]};border:1px solid {rc["border"]};" title="{d}×{gene}: {rl} ({ph})"><div class="hm-drug" style="color:{rc["text"]};">{sh}</div><div class="hm-risk" style="color:{rc["text"]};">{ph}</div></div>'
+                rows += f'<div class="hm-cell" style="background:{rc["bg"]};border:1px solid {rc["border"]};" title="{d}x{gene}: {rl} ({ph})"><div class="hm-drug" style="color:{rc["text"]};">{sh}</div><div class="hm-risk" style="color:{rc["text"]};">{ph}</div></div>'
             else:
                 rc = HEATMAP_COLORS["N/A"]
                 rows += f'<div class="hm-cell" style="background:{rc["bg"]};border:1px solid {rc["border"]};"><div class="hm-risk" style="color:{rc["text"]};">—</div></div>'
     legend = "".join(f'<div class="hm-legend-item"><span class="hm-legend-dot" style="background:{HEATMAP_COLORS[r]["bg"]};border:1px solid {HEATMAP_COLORS[r]["border"]};"></span>{r}</div>' for r in ["Safe","Adjust Dosage","Toxic","Ineffective"])
     st.markdown(f"""
     <div class="heatmap-wrap">
-      <div class="heatmap-title">⬡ Drug × Gene Risk Matrix</div>
+      <div class="heatmap-title">Drug x Gene Risk Matrix</div>
       <div class="hm-grid" style="grid-template-columns:72px repeat({n},1fr);">{hdrs}{rows}</div>
       <div class="hm-legend">{legend}</div>
     </div>""", unsafe_allow_html=True)
@@ -434,7 +534,7 @@ def render_chromosome_viz(all_outputs, parsed_vcf):
         </div>"""
     st.markdown(f"""
     <div class="chrom-wrap">
-      <div class="chrom-title">⬡ Variant Chromosome Locations</div>
+      <div class="chrom-title">Variant Chromosome Locations</div>
       {rows}
       <div style="font-family:'DM Mono',monospace;font-size:0.56rem;color:#2a2a2a;margin-top:0.6rem;">Glowing markers = variants detected in this VCF</div>
     </div>""", unsafe_allow_html=True)
@@ -466,7 +566,252 @@ def render_population_frequency(gene, phenotype):
 
 
 # ══════════════════════════════════════════════════════════════
-# FEATURE 5 — PATIENT PLAIN-ENGLISH MODE
+# NEW FEATURE A — OVERALL RISK COMMAND CENTER BANNER (F2)
+# ══════════════════════════════════════════════════════════════
+
+def render_risk_banner(all_outputs, parsed_vcf):
+    overall_sev = max((o["risk_assessment"]["severity"] for o in all_outputs),
+                      key=lambda s: SEV_RANK.get(s, 0), default="none")
+    sev_labels = {"none": "None", "low": "Low", "moderate": "Moderate", "high": "High", "critical": "Critical"}
+    sev_emojis = {"none": "✅", "low": "💛", "moderate": "🟠", "high": "🔴", "critical": "🚨"}
+    banner_colors = {
+        "none":     {"bg": "#052e16", "border": "#166534", "text": "#4ade80"},
+        "low":      {"bg": "#422006", "border": "#92400e", "text": "#fcd34d"},
+        "moderate": {"bg": "#431407", "border": "#9a3412", "text": "#fb923c"},
+        "high":     {"bg": "#450a0a", "border": "#991b1b", "text": "#f87171"},
+        "critical": {"bg": "#3b0000", "border": "#7f1d1d", "text": "#fca5a5"},
+    }
+    bc = banner_colors.get(overall_sev, banner_colors["none"])
+    emoji = sev_emojis.get(overall_sev, "")
+    label = sev_labels.get(overall_sev, "Unknown")
+
+    high_critical = sum(1 for o in all_outputs
+                       if o["risk_assessment"]["severity"] in ("high", "critical"))
+    num_drugs = len(all_outputs)
+    num_genes = len(parsed_vcf.get("detected_genes", []))
+    num_variants = parsed_vcf.get("total_variants", 0)
+
+    st.markdown(f"""
+    <div class="risk-banner" style="background:{bc['bg']};border-color:{bc['border']};">
+      <div class="risk-banner-title">Overall Risk Assessment</div>
+      <div class="risk-banner-level" style="color:{bc['text']};">{emoji} {label} Risk</div>
+      <div class="risk-banner-grid">
+        <div class="risk-banner-stat">
+          <div class="risk-banner-num" style="color:{bc['text']};">{num_drugs}</div>
+          <div class="risk-banner-key" style="color:{bc['text']};">Drugs Analyzed</div>
+        </div>
+        <div class="risk-banner-stat">
+          <div class="risk-banner-num" style="color:{'#f87171' if high_critical > 0 else bc['text']};">{high_critical}</div>
+          <div class="risk-banner-key" style="color:{bc['text']};">High/Critical</div>
+        </div>
+        <div class="risk-banner-stat">
+          <div class="risk-banner-num" style="color:{bc['text']};">{num_genes}</div>
+          <div class="risk-banner-key" style="color:{bc['text']};">Genes Detected</div>
+        </div>
+        <div class="risk-banner-stat">
+          <div class="risk-banner-num" style="color:{bc['text']};">{num_variants}</div>
+          <div class="risk-banner-key" style="color:{bc['text']};">Variants Found</div>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW FEATURE B — EMERGENCY ALERTS (F3)
+# ══════════════════════════════════════════════════════════════
+
+def render_emergency_alerts(all_outputs):
+    critical_drugs = [o for o in all_outputs if o["risk_assessment"]["severity"] == "critical"]
+    for out in critical_drugs:
+        drug = out["drug"]
+        note = out["clinical_recommendation"]["dosing_recommendation"]
+        st.markdown(f"""
+        <div class="emergency-alert">
+          <div class="emergency-header">
+            <span class="emergency-icon">🚨</span>
+            <span class="emergency-drug">CRITICAL ALERT: {drug}</span>
+          </div>
+          <div class="emergency-note">{note[:200]}{"..." if len(note) > 200 else ""}</div>
+          <div class="emergency-cta">Contact prescribing physician IMMEDIATELY</div>
+        </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW FEATURE C — GENE ACTIVITY HEATMAP (F4)
+# ══════════════════════════════════════════════════════════════
+
+def render_gene_activity_heatmap(all_outputs):
+    GENE_ORDER = ["CYP2D6", "CYP2C19", "CYP2C9", "SLCO1B1", "TPMT", "DPYD"]
+    gene_phenotype = {}
+    for out in all_outputs:
+        gene = out["pharmacogenomic_profile"]["primary_gene"]
+        pheno = out["pharmacogenomic_profile"]["phenotype"]
+        gene_phenotype[gene] = pheno
+
+    boxes = ""
+    for gene in GENE_ORDER:
+        pheno = gene_phenotype.get(gene, "Unknown")
+        gc = PHENOTYPE_GENE_COLORS.get(pheno, PHENOTYPE_GENE_COLORS["Unknown"])
+        activity_pct = {"NM": 100, "RM": 115, "URM": 130, "IM": 50, "PM": 5, "Unknown": 0}.get(pheno, 50)
+        activity_pct = min(100, activity_pct)
+        boxes += f"""
+        <div class="gene-box" style="background:{gc['bg']};border-color:{gc['bg']};border:1px solid {gc['text']}22;">
+          <div class="gene-box-name" style="color:{gc['text']};">{gene}</div>
+          <div class="gene-activity-bar" style="background:#0a0a0a;">
+            <div style="width:{activity_pct}%;height:4px;border-radius:2px;background:{gc['text']};"></div>
+          </div>
+          <div class="gene-box-phenotype" style="color:{gc['text']};">{pheno}</div>
+        </div>"""
+
+    st.markdown(f"""
+    <div style="margin-bottom:0.5rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#6b7280;margin-bottom:0.75rem;">Gene Activity Overview</div>
+      <div class="gene-heatmap">{boxes}</div>
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW FEATURE D — DRUG RISK COMPARISON TABLE (F5)
+# ══════════════════════════════════════════════════════════════
+
+def render_drug_comparison_table(all_outputs):
+    rows_html = ""
+    table_data = []
+    for out in all_outputs:
+        drug = out["drug"]
+        rl   = out["risk_assessment"]["risk_label"]
+        sev  = out["risk_assessment"]["severity"]
+        conf = out["risk_assessment"]["confidence_score"]
+        gene = out["pharmacogenomic_profile"]["primary_gene"]
+        pheno = out["pharmacogenomic_profile"]["phenotype"]
+        rc   = RISK_CONFIG.get(rl, RISK_CONFIG["Unknown"])
+        emoji = rc["emoji"]
+        rows_html += f"""<div class="drug-table-row">
+          <div class="drug-table-cell" style="font-weight:600;color:#e0e0e0;">{drug.title()}</div>
+          <div class="drug-table-cell"><span style="display:inline-flex;align-items:center;gap:6px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:{rc['dot']};flex-shrink:0;"></span>
+            {emoji} {rl}</span></div>
+          <div class="drug-table-cell" style="color:{'#f87171' if sev in ('high','critical') else '#fbbf24' if sev == 'moderate' else '#9ca3af'};">{sev.title()}</div>
+          <div class="drug-table-cell">{gene}</div>
+          <div class="drug-table-cell" style="color:{rc['text']};">{pheno}</div>
+          <div class="drug-table-cell">
+            <div style="flex:1;height:4px;background:#1e1e1e;border-radius:2px;overflow:hidden;margin-right:6px;">
+              <div style="width:{conf*100:.0f}%;height:100%;background:{rc['dot']};border-radius:2px;"></div>
+            </div>
+            <span style="font-size:0.68rem;color:#6b7280;">{conf:.0%}</span>
+          </div>
+        </div>"""
+        table_data.append({
+            "Drug": drug, "Risk": rl, "Severity": sev,
+            "Gene": gene, "Phenotype": pheno, "Confidence": f"{conf:.0%}",
+        })
+
+    st.markdown(f"""
+    <div class="drug-table-wrap">
+      <div class="drug-table-header">
+        <div class="drug-table-hcell">Drug</div>
+        <div class="drug-table-hcell">Risk</div>
+        <div class="drug-table-hcell">Severity</div>
+        <div class="drug-table-hcell">Gene</div>
+        <div class="drug-table-hcell">Phenotype</div>
+        <div class="drug-table-hcell">Confidence</div>
+      </div>
+      {rows_html}
+    </div>""", unsafe_allow_html=True)
+
+    # CSV download
+    df = pd.DataFrame(table_data)
+    csv = df.to_csv(index=False)
+    st.download_button(
+        "Download Table as CSV", data=csv,
+        file_name="pharmagard_drug_comparison.csv", mime="text/csv",
+        key="csv_dl_comparison"
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW FEATURE E — DRUG INTERACTION MATRIX (F6)
+# ══════════════════════════════════════════════════════════════
+
+def render_interaction_matrix(all_outputs, ix_report):
+    if not ix_report or len(all_outputs) < 2:
+        return
+
+    drugs = [o["drug"] for o in all_outputs]
+    n = len(drugs)
+
+    # Build severity matrix
+    sev_map = {}
+    mech_map = {}
+    rec_map = {}
+    if ix_report:
+        for ix in ix_report.get("all_interactions", []):
+            involved = ix.get("drugs_involved", [])
+            if len(involved) == 2:
+                key = (involved[0], involved[1])
+                key2 = (involved[1], involved[0])
+                sev = ix.get("severity", "none")
+                mech = ix.get("mechanism", ix.get("message", ""))
+                rec = ix.get("recommendation", "")
+                sev_map[key] = sev_map[key2] = sev
+                mech_map[key] = mech_map[key2] = mech
+                rec_map[key]  = rec_map[key2] = rec
+
+    MATRIX_COLORS = {
+        "critical": {"bg": "#450a0a", "text": "#f87171", "border": "#991b1b"},
+        "high":     {"bg": "#450a0a", "text": "#f87171", "border": "#991b1b"},
+        "moderate": {"bg": "#451a03", "text": "#fbbf24", "border": "#92400e"},
+        "low":      {"bg": "#422006", "text": "#fcd34d", "border": "#78350f"},
+        "none":     {"bg": "#052e16", "text": "#4ade80", "border": "#166534"},
+        "diagonal": {"bg": "#111", "text": "#2a2a2a", "border": "#1e1e1e"},
+    }
+
+    header_cells = '<div class="ix-matrix-header"></div>'
+    for d in drugs:
+        header_cells += f'<div class="ix-matrix-header">{d[:6]}</div>'
+
+    grid_rows = ""
+    for i, d1 in enumerate(drugs):
+        grid_rows += f'<div class="ix-matrix-header" style="justify-content:flex-end;padding-right:4px;">{d1[:6]}</div>'
+        for j, d2 in enumerate(drugs):
+            if i == j:
+                mc = MATRIX_COLORS["diagonal"]
+                cell = f'<div class="ix-matrix-cell" style="background:{mc["bg"]};border:1px solid {mc["border"]};color:{mc["text"]};">—</div>'
+            else:
+                sev = sev_map.get((d1, d2), "none")
+                mc  = MATRIX_COLORS.get(sev, MATRIX_COLORS["none"])
+                cell = f'<div class="ix-matrix-cell" style="background:{mc["bg"]};border:1px solid {mc["border"]};color:{mc["text"]};">{sev.upper() if sev != "none" else "OK"}</div>'
+            grid_rows += cell
+
+    st.markdown(f"""
+    <div style="margin-bottom:1rem;">
+      <div style="font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:#6b7280;margin-bottom:0.75rem;">Drug Interaction Matrix</div>
+      <div class="ix-matrix-grid" style="grid-template-columns:64px repeat({n},1fr);gap:3px;">
+        {header_cells}{grid_rows}
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+    # Show interaction detail expanders
+    shown = set()
+    for ix in ix_report.get("all_interactions", []):
+        involved = ix.get("drugs_involved", [])
+        if len(involved) == 2:
+            key = tuple(sorted(involved))
+            if key not in shown:
+                shown.add(key)
+                sev = ix.get("severity", "low")
+                color = IX_PALETTE.get(sev, "#9ca3af")
+                with st.expander(f"{' + '.join(involved)} — {sev.upper()}"):
+                    mech = ix.get("mechanism", ix.get("message", ""))
+                    rec  = ix.get("recommendation", "")
+                    if mech:
+                        st.markdown(f'<div style="font-size:0.9rem;color:#b0b0b0;line-height:1.7;margin-bottom:0.5rem;">{mech}</div>', unsafe_allow_html=True)
+                    if rec:
+                        st.markdown(f'<div style="font-family:DM Mono,monospace;font-size:0.75rem;color:{color};margin-top:0.5rem;">Recommendation: {rec}</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW FEATURE F — PATIENT PLAIN-ENGLISH MODE
 # ══════════════════════════════════════════════════════════════
 
 def render_patient_mode(all_outputs):
@@ -476,7 +821,7 @@ def render_patient_mode(all_outputs):
     icon  = "🚨" if bad else "✅"
     msg   = "Important: Some medications need attention" if bad else "Good news: Your medications look safe"
     st.markdown(f"""
-    <div class="pt-header" style="background:#0f0f0f;border-color:{hc}33;">
+    <div style="background:#0f0f0f;border:2px solid {hc}33;border-radius:14px;padding:1.5rem;margin-bottom:1.5rem;">
       <div style="font-size:1.3rem;font-weight:700;color:{hc};margin-bottom:0.4rem;">{icon} {msg}</div>
       <div style="font-size:0.9rem;color:#6b7280;line-height:1.7;">
         This report analysed your DNA to see how your body handles certain medicines.
@@ -491,25 +836,25 @@ def render_patient_mode(all_outputs):
         alts  = out["clinical_recommendation"].get("alternative_drugs", [])
         pheno_plain = PLAIN_ENGLISH_PHENOTYPE.get(pheno, pheno)
         explain     = RISK_PLAIN_ENGLISH.get((drug, pheno), "")
-        VERDICT     = {"Safe":"✅ This medicine is likely safe for you",
-                       "Adjust Dosage":"⚠️ You may need a different dose of this medicine",
-                       "Toxic":"🚨 This medicine could be harmful to you",
-                       "Ineffective":"❌ This medicine likely won't work for you",
-                       "Unknown":"❓ We need more information about this medicine"}
+        VERDICT = {"Safe":"✅ This medicine is likely safe for you",
+                   "Adjust Dosage":"⚠️ You may need a different dose of this medicine",
+                   "Toxic":"🚨 This medicine could be harmful to you",
+                   "Ineffective":"❌ This medicine likely won't work for you",
+                   "Unknown":"❓ We need more information about this medicine"}
         verdict = VERDICT.get(rl, rl)
         bc = {"Safe":"#16a34a","Adjust Dosage":"#b45309","Toxic":"#dc2626","Ineffective":"#7c3aed"}.get(rl,"#6b7280")
         vc = {"Safe":"#d1fae5","Adjust Dosage":"#fef3c7","Toxic":"#fee2e2","Ineffective":"#ede9fe"}.get(rl,"#f0f0f0")
         action = ""
         if rl in ("Toxic","Ineffective"):
-            action = f'<div class="pt-action"><span style="font-size:1.1rem;">💊</span><div class="pt-action-text"><strong style="color:#f0f0f0;">Talk to your doctor before taking {drug.title()}.</strong><br>{f"They may suggest: {chr(44).join(alts[:3])}" if alts else "Ask about alternative medications."}</div></div>'
+            action = f'<div style="display:flex;align-items:flex-start;gap:0.6rem;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:0.875rem 1rem;margin-top:0.75rem;"><span style="font-size:1.1rem;">💊</span><div style="font-size:0.9rem;color:#e0e0e0;line-height:1.6;"><strong>Talk to your doctor before taking {drug.title()}.</strong><br>{f"They may suggest: {chr(44).join(alts[:3])}" if alts else "Ask about alternative medications."}</div></div>'
         elif rl == "Adjust Dosage":
-            action = f'<div class="pt-action"><span style="font-size:1.1rem;">📋</span><div class="pt-action-text"><strong style="color:#f0f0f0;">Tell your doctor about this result before starting {drug.title()}.</strong><br>You may need a different dose than what\'s usually prescribed.</div></div>'
+            action = f'<div style="display:flex;align-items:flex-start;gap:0.6rem;background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:0.875rem 1rem;margin-top:0.75rem;"><span style="font-size:1.1rem;">📋</span><div style="font-size:0.9rem;color:#e0e0e0;line-height:1.6;"><strong>Tell your doctor about this result before starting {drug.title()}.</strong><br>You may need a different dose than what\'s usually prescribed.</div></div>'
         st.markdown(f"""
-        <div class="pt-card" style="background:#0f0f0f;border-color:{bc}33;">
-          <div class="pt-drug">{drug.title()}</div>
-          <div class="pt-verdict" style="color:{vc};">{verdict}</div>
-          <div class="pt-pheno" style="color:#484848;">{gene} · {pheno_plain}</div>
-          {f'<div class="pt-explain">{explain}</div>' if explain else ""}
+        <div style="background:#0f0f0f;border:1px solid {bc}33;border-radius:14px;padding:1.5rem;margin-bottom:1rem;">
+          <div style="font-size:1.35rem;font-weight:700;color:#f0f0f0;margin-bottom:0.25rem;">{drug.title()}</div>
+          <div style="font-size:1.1rem;color:{vc};line-height:1.6;margin-bottom:0.6rem;">{verdict}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;margin-bottom:0.6rem;color:#484848;">{gene} · {pheno_plain}</div>
+          {f'<div style="font-size:0.92rem;line-height:1.8;color:#9ca3af;">{explain}</div>' if explain else ""}
           {action}
         </div>""", unsafe_allow_html=True)
 
@@ -518,32 +863,31 @@ def render_patient_mode(all_outputs):
 # MAIN RESULTS RENDERER
 # ══════════════════════════════════════════════════════════════
 
-def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_mode=False):
+def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid,
+                   patient_mode=False, groq_key="", skip_llm=False):
     overall_sev = max((o["risk_assessment"]["severity"] for o in all_outputs),
                       key=lambda s: SEV_RANK.get(s, 0), default="none")
     sev_label = overall_sev.title() if overall_sev != "none" else "None"
     genes_str = " · ".join(parsed_vcf.get("detected_genes", [])) or "—"
 
-    st.markdown(f"""
-    <div class="stat-grid">
-      <div class="stat-cell"><div class="stat-key">Patient</div>
-        <div style="font-family:'DM Mono',monospace;font-size:0.85rem;color:#e0e0e0;margin-top:4px;">{pid}</div></div>
-      <div class="stat-cell"><div class="stat-key">Overall Risk</div><div class="stat-val">{sev_label}</div></div>
-      <div class="stat-cell"><div class="stat-key">Drugs</div><div class="stat-val">{len(all_outputs)}</div></div>
-      <div class="stat-cell"><div class="stat-key">Variants</div><div class="stat-val">{parsed_vcf['total_variants']}</div></div>
-      <div class="stat-cell"><div class="stat-key">Genes</div>
-        <div class="stat-val">{len(parsed_vcf['detected_genes'])}<span style="font-size:1rem;color:#d1d5db;">/6</span></div>
-        <div class="stat-sub">{genes_str}</div></div>
-    </div>""", unsafe_allow_html=True)
+    # ── FEATURE 2: Risk Command Center Banner ─────────────────
+    render_risk_banner(all_outputs, parsed_vcf)
 
+    # ── FEATURE 3: Emergency Alerts ──────────────────────────
+    render_emergency_alerts(all_outputs)
+
+    # ── FEATURE 4: Gene Activity Heatmap ─────────────────────
+    render_gene_activity_heatmap(all_outputs)
+
+    # ── Download buttons row ─────────────────────────────────
     dc1, dc2, dc3 = st.columns(3)
     with dc1:
-        st.download_button("Download JSON", data=json.dumps(all_outputs, indent=2),
+        st.download_button("Download All JSON", data=json.dumps(all_outputs, indent=2),
                            file_name=f"pharmaguard_{pid}_all.json", mime="application/json",
                            use_container_width=True, key=f"dlall_{pid}")
     with dc2:
         if pdf_bytes:
-            st.download_button("Download PDF", data=pdf_bytes,
+            st.download_button("Download PDF Report", data=pdf_bytes,
                                file_name=f"pharmaguard_{pid}.pdf", mime="application/pdf",
                                use_container_width=True, key=f"dlpdf_{pid}")
     with dc3:
@@ -552,22 +896,30 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
                                file_name=f"pharmaguard_{pid}_ix.json", mime="application/json",
                                use_container_width=True, key=f"dlix_{pid}")
 
-    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
     if patient_mode:
         render_patient_mode(all_outputs)
         return
 
-    # ── New visual features ───────────────────────────────────
+    # ── FEATURE 5: Drug Risk Comparison Table ─────────────────
+    st.markdown('<div class="section-label">Drug Risk Comparison</div>', unsafe_allow_html=True)
+    render_drug_comparison_table(all_outputs)
+
+    # ── Polygenic Risk Score ──────────────────────────────────
     render_polygenic_score(all_outputs)
 
+    # ── Drug x Gene Heatmap + Chromosome ─────────────────────
     col_h, col_c = st.columns([1.4, 1], gap="large")
-    with col_h: render_heatmap(all_outputs)
+    with col_h: render_drug_gene_heatmap(all_outputs)
     with col_c: render_chromosome_viz(all_outputs, parsed_vcf)
 
-    # ── Interactions ──────────────────────────────────────────
-    if ix_report and ix_report["interactions_found"]:
-        with st.expander(f"Drug–Drug Interactions  ·  {ix_report['total_interactions']} found", expanded=True):
+    # ── FEATURE 6: Drug Interaction Matrix ───────────────────
+    if ix_report and len(all_outputs) >= 2:
+        st.markdown('<div class="section-label">Drug Interaction Matrix</div>', unsafe_allow_html=True)
+        render_interaction_matrix(all_outputs, ix_report)
+    elif ix_report and ix_report["interactions_found"]:
+        with st.expander(f"Drug-Drug Interactions  ·  {ix_report['total_interactions']} found", expanded=True):
             for ix in ix_report["all_interactions"]:
                 sev   = ix.get("severity","low")
                 color = IX_PALETTE.get(sev,"#94a3b8")
@@ -577,14 +929,45 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
                   <div style="flex:1;">
                     <div class="ix-title">{ds}</div>
                     <div class="ix-msg">{ix.get('message',ix.get('mechanism',''))}</div>
-                    <div class="ix-rec">💡 {ix.get('recommendation','')}</div>
+                    <div class="ix-rec">Recommendation: {ix.get('recommendation','')}</div>
                   </div>
                   <span class="ix-sev" style="background:{color}18;color:{color};">{sev.upper()}</span>
                 </div>""", unsafe_allow_html=True)
-    elif ix_report:
-        st.markdown('<div style="padding:0.75rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:1rem;font-family:DM Mono,monospace;font-size:0.65rem;letter-spacing:0.04em;color:#16a34a;">✓ No significant drug–drug interactions detected.</div>', unsafe_allow_html=True)
+
+    # ── FEATURE 7: AI Unified Patient Narrative ───────────────
+    st.markdown('<div class="section-label" style="margin-top:1rem;">AI Clinical Summary</div>', unsafe_allow_html=True)
+    with st.spinner("Generating unified patient narrative..."):
+        risk_results_for_narrative = [
+            {
+                "drug": o["drug"],
+                "primary_gene": o["pharmacogenomic_profile"]["primary_gene"],
+                "phenotype": o["pharmacogenomic_profile"]["phenotype"],
+                "risk_label": o["risk_assessment"]["risk_label"],
+                "severity": o["risk_assessment"]["severity"],
+            }
+            for o in all_outputs
+        ]
+        narrative = generate_patient_narrative(
+            patient_id=pid,
+            all_results=risk_results_for_narrative,
+            parsed_vcf=parsed_vcf,
+            api_key=groq_key,
+            skip_llm=skip_llm,
+        )
+    is_static_narrative = not groq_key or skip_llm
+    badge = "static-template" if is_static_narrative else "llama-3.3-70b-versatile"
+    st.markdown(f"""
+    <div class="ai-narrative">
+      <div class="ai-narrative-header">
+        <span class="ai-narrative-badge">{badge}</span>
+        <span class="ai-narrative-title">AI Clinical Summary</span>
+      </div>
+      <div class="ai-narrative-text">{narrative}</div>
+    </div>""", unsafe_allow_html=True)
 
     # ── Per-drug cards ────────────────────────────────────────
+    st.markdown('<div class="section-label" style="margin-top:1rem;">Individual Drug Analysis</div>', unsafe_allow_html=True)
+
     for output in all_outputs:
         rl   = output["risk_assessment"]["risk_label"]
         dn   = output["drug"]
@@ -601,22 +984,21 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
         rc   = RISK_CONFIG.get(rl, RISK_CONFIG["Unknown"])
         sp   = SEV_PALETTE.get(sev, {})
 
-        if sev in ("critical","high") and sp:
-            st.markdown(f"""<div class="alert" style="background:{sp['bg']};border-color:{sp['border']};">
-              <span style="font-size:0.9rem;flex-shrink:0;">{'⛔' if sev=='critical' else '⚠️'}</span>
-              <div><div class="alert-label" style="color:{sp['text']};">{sev.title()} Alert — {dn}</div>
-              <div class="alert-text" style="color:{sp['text']};">{rec}</div></div>
-            </div>""", unsafe_allow_html=True)
+        # ── FEATURE 8: CPIC Evidence Badge + card header ─────
+        cpic_level = output.get("pharmacogenomic_profile", {}).get("cpic_evidence_level", "Level A")
+        cpic_badge = f'<span class="cpic-badge">CPIC {cpic_level} ⭐⭐⭐</span>'
 
         st.markdown(f"""
         <div class="rcard">
           <div class="rcard-top">
             <div class="rcard-left">
               <div class="rcard-dot" style="background:{rc['dot']};box-shadow:0 0 8px {rc['dot']}88;"></div>
-              <div><div class="rcard-name">{dn.title()}</div>
-              <div class="rcard-meta">{gene} · {dip} · {ph}</div></div>
+              <div>
+                <div class="rcard-name">{dn.title()} {cpic_badge}</div>
+                <div class="rcard-meta">{gene} · {dip} · {ph}</div>
+              </div>
             </div>
-            <span class="rcard-badge" style="color:{rc['text']};border-color:{rc['border']};background:{rc['bg']};">{rc['label']}</span>
+            <span class="rcard-badge" style="color:{rc['text']};border-color:{rc['border']};background:{rc['bg']};">{rc['emoji']} {rc['label']}</span>
           </div>
           <div class="rcard-body">
             <div class="mc-row">
@@ -624,11 +1006,21 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
               <div class="mc-cell"><div class="mc-key">Severity</div><div class="mc-val">{sev.title()}</div></div>
               <div class="mc-cell"><div class="mc-key">Confidence</div><div class="mc-val">{conf:.0%}</div></div>
               <div class="mc-cell"><div class="mc-key">Variants</div><div class="mc-val">{len(var)}</div></div>
-            </div>
-            <div class="conf-wrap">
-              <div class="conf-header"><span>Prediction confidence</span><span style="color:{rc['text']};font-weight:500;">{conf:.0%}</span></div>
-              <div class="conf-track"><div class="conf-fill" style="width:{conf*100:.1f}%;background:{rc['dot']};box-shadow:0 0 6px {rc['dot']}66;"></div></div>
             </div>""", unsafe_allow_html=True)
+
+        # ── FEATURE 9: Confidence + Data Quality bars ─────────
+        data_quality = min(1.0, len(var) / 3.0)
+        st.markdown(f"""
+        <div class="conf-dual">
+          <div class="conf-item">
+            <div class="conf-label"><span>Prediction Confidence</span><span style="color:{rc['text']};font-weight:600;">{conf:.0%}</span></div>
+            <div class="conf-track"><div class="conf-fill" style="width:{conf*100:.1f}%;background:{rc['dot']};box-shadow:0 0 6px {rc['dot']}66;"></div></div>
+          </div>
+          <div class="conf-item">
+            <div class="conf-label"><span>Data Quality</span><span style="color:#6b7280;">{len(var)} variant{"s" if len(var)!=1 else ""} detected</span></div>
+            <div class="conf-track"><div class="conf-fill" style="width:{data_quality*100:.1f}%;background:#6b7280;"></div></div>
+          </div>
+        </div>""", unsafe_allow_html=True)
 
         if var:
             rows = ""
@@ -637,12 +1029,10 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
                 fn = (v.get("functional_status") or "unknown").replace("_"," ").title()
                 rows += f"""<tr><td class="v-rsid">{v.get('rsid','—')}</td>
                   <td class="v-star">{v.get('star_allele','—')}</td>
-                  <td>{v.get('ref','?')} → {v.get('alt','?')}</td>
-                  <td>{v.get('chrom','—')}:{v.get('pos','—')}</td>
                   <td class="{fc}">{fn}</td></tr>"""
             st.markdown(f"""<hr class="h-rule">
             <div class="inline-label">Detected Variants ({len(var)})</div>
-            <table class="vtable"><thead><tr><th>rsID</th><th>Star Allele</th><th>Change</th><th>Position</th><th>Function</th></tr></thead>
+            <table class="vtable"><thead><tr><th>rsID</th><th>Star Allele</th><th>Function</th></tr></thead>
             <tbody>{rows}</tbody></table>""", unsafe_allow_html=True)
         else:
             st.markdown('<div style="font-family:DM Mono,monospace;font-size:0.68rem;color:#9ca3af;padding:0.5rem 0 0.25rem;">No variants detected — wild-type (*1/*1) assumed</div>', unsafe_allow_html=True)
@@ -668,9 +1058,10 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
 
         st.markdown("</div></div>", unsafe_allow_html=True)
 
-        # Population frequency bar per card
+        # Population frequency
         render_population_frequency(gene, ph)
 
+        # AI explanation block
         if exp.get("summary"):
             is_static   = "static" in exp.get("model_used","").lower()
             model_label = exp.get("model_used","llama-3.3-70b-versatile")
@@ -685,12 +1076,18 @@ def render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_m
               <span style="font-family:DM Mono,monospace;font-size:0.6rem;color:#9ca3af;">AI Explanation · {dn}</span></div>
               {blocks}</div>""", unsafe_allow_html=True)
 
-        with st.expander(f"Raw JSON — {dn}", expanded=False):
+        # ── FEATURE 10: Per-drug JSON download ────────────────
+        with st.expander(f"Raw JSON + Download — {dn}", expanded=False):
             c1, _ = st.columns([1,3])
             with c1:
-                st.download_button("Download", data=json.dumps(output, indent=2),
-                                   file_name=f"pharmaguard_{pid}_{dn}.json", mime="application/json",
-                                   key=f"dl_{pid}_{dn}", use_container_width=True)
+                st.download_button(
+                    f"Download {dn} JSON",
+                    data=json.dumps(output, indent=2),
+                    file_name=f"pharmaguard_{pid}_{dn}.json",
+                    mime="application/json",
+                    key=f"dl_{pid}_{dn}",
+                    use_container_width=True
+                )
             st.code(json.dumps(output, indent=2), language="json")
 
 
@@ -703,7 +1100,7 @@ st.markdown("""
   <div style="display:flex;gap:0.5rem;align-items:center;">
     <span class="pg-pill">CPIC Aligned</span>
     <span class="pg-pill">RIFT 2026</span>
-    <span class="pg-pill pg-pill-hot">v5.0 ★</span>
+    <span class="pg-pill pg-pill-hot">v6.0 ★</span>
   </div>
 </div>""", unsafe_allow_html=True)
 
@@ -714,14 +1111,40 @@ with st.sidebar:
     st.markdown('<div style="font-family:DM Mono,monospace;font-size:0.58rem;color:#3a3a3a;padding-bottom:1rem;line-height:1.8;">Model: LLaMA 3.3 70B<br>Fallback: static expert templates<br>Test mode: instant (no API)</div><hr style="border:none;border-top:1px solid #1e1e1e;"><div style="padding:0.75rem 0 0.5rem;font-family:DM Mono,monospace;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;">Gene Map</div>', unsafe_allow_html=True)
     for g, drug in [("CYP2D6","Codeine"),("CYP2C19","Clopidogrel"),("CYP2C9","Warfarin"),
                     ("SLCO1B1","Simvastatin"),("TPMT","Azathioprine"),("DPYD","Fluorouracil")]:
-        st.markdown(f'<div style="font-family:DM Mono,monospace;font-size:0.68rem;padding:3px 0;color:#374151;">{g} <span style="color:#9ca3af;">→</span> {drug}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-family:DM Mono,monospace;font-size:0.68rem;padding:3px 0;color:#374151;">{g} <span style="color:#9ca3af;">-></span> {drug}</div>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["Analysis", "Test Suite"])
+
 
 # ══════════════════════════════════════════════════════════════
 # TAB 1 — ANALYSIS
 # ══════════════════════════════════════════════════════════════
 with tab1:
+    # ── FEATURE 1: 4 Patient Persona Quick Demo Buttons ───────
+    st.markdown('<div style="font-family:DM Mono,monospace;font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;margin-bottom:0.75rem;">Quick Demo — Select Patient Persona</div>', unsafe_allow_html=True)
+
+    persona_colors = {
+        "A": {"bg": "#450a0a", "border": "#991b1b", "text": "#f87171"},
+        "B": {"bg": "#451a03", "border": "#92400e", "text": "#fbbf24"},
+        "C": {"bg": "#1e1a3a", "border": "#4c1d95", "text": "#c4b5fd"},
+        "D": {"bg": "#052e16", "border": "#166534", "text": "#4ade80"},
+    }
+    p_cols = st.columns(4)
+    for i, (key, persona) in enumerate(PERSONAS.items()):
+        pc = persona_colors[key]
+        with p_cols[i]:
+            st.markdown(f"""
+            <div class="persona-btn" style="background:{pc['bg']};border-color:{pc['border']};">
+              <div class="persona-label" style="color:{pc['text']};">{persona['label']}</div>
+              <div class="persona-desc" style="color:{pc['text']};">{persona['desc']}</div>
+            </div>""", unsafe_allow_html=True)
+            if st.button(f"Load", key=f"persona_{key}", use_container_width=True):
+                st.session_state["persona_file"]  = persona["file"]
+                st.session_state["persona_drugs"] = persona["drugs"]
+                st.session_state["persona_key"]   = key
+
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+
     st.markdown("""<div class="steps-row">
       <div class="step-item active"><div class="step-num">01</div><div class="step-label">Upload VCF</div></div>
       <div class="step-item active"><div class="step-num">02</div><div class="step-label">Select Drugs</div></div>
@@ -744,17 +1167,29 @@ with tab1:
                 else:
                     st.success(f"✓  {uploaded_file.name}  ·  {sz:.2f} MB")
         st.markdown('<div class="section-label" style="margin-top:1rem;">Or use a scenario</div>', unsafe_allow_html=True)
-        scenario_opts = {"None":None,"Mixed Variants (Standard)":"sample.vcf",
-                         "UltraRapid Metabolizer — Codeine Toxic":"test_ultrarapid_metabolizer.vcf",
-                         "All Normal Wild-type":"test_all_normal_wildtype.vcf",
-                         "Worst Case — All Poor Metabolizers":"test_worst_case_all_pm.vcf"}
+        scenario_opts = {
+            "None": None,
+            "Mixed Variants (Standard)": "sample.vcf",
+            "UltraRapid Metabolizer — Codeine Toxic": "test_ultrarapid_metabolizer.vcf",
+            "All Normal Wild-type": "test_all_normal_wildtype.vcf",
+            "Worst Case — All Poor Metabolizers": "test_worst_case_all_pm.vcf",
+            "Patient A — Critical Risk (CODEINE/FLUOROURACIL/AZA)": "patient_a_critical.vcf",
+            "Patient B — Warfarin PM (CYP2C9 *2/*3)": "patient_b_warfarin.vcf",
+            "Patient C — Clopidogrel PM (CYP2C19 *2/*3)": "patient_c_interaction.vcf",
+            "Patient D — All Safe (Wildtype)": "patient_d_safe.vcf",
+        }
         chosen_label = st.selectbox("Test Scenario", list(scenario_opts.keys()), label_visibility="collapsed")
         chosen_file  = scenario_opts[chosen_label]
 
     with col_r:
         st.markdown('<div class="section-label">Drugs</div>', unsafe_allow_html=True)
-        drug_multiselect = st.multiselect("Select drugs", options=ALL_DRUGS, default=["CLOPIDOGREL"],
-            format_func=lambda x: f"{x.title()}  ({GENE_DRUG_MAP.get(x,'')})", label_visibility="collapsed")
+        # Pre-fill from persona if set
+        default_drugs = st.session_state.get("persona_drugs", ["CLOPIDOGREL"])
+        drug_multiselect = st.multiselect(
+            "Select drugs", options=ALL_DRUGS, default=default_drugs,
+            format_func=lambda x: f"{x.title()}  ({GENE_DRUG_MAP.get(x,'')})",
+            label_visibility="collapsed"
+        )
         st.markdown('<div class="section-label" style="margin-top:0.75rem;">Or type drug names</div>', unsafe_allow_html=True)
         custom_drugs = st.text_input("Custom drugs", placeholder="CODEINE, WARFARIN, ...", label_visibility="collapsed")
         st.markdown('<div class="section-label" style="margin-top:0.75rem;">Patient ID</div>', unsafe_allow_html=True)
@@ -763,11 +1198,11 @@ with tab1:
         with c1: run_interactions = st.checkbox("Check interactions", value=True)
         with c2: generate_pdf    = st.checkbox("Generate PDF", value=True)
         st.markdown('<div class="section-label" style="margin-top:0.75rem;">View Mode</div>', unsafe_allow_html=True)
-        patient_mode = st.toggle("🧬 → 💬 Patient Plain-English Mode",
+        patient_mode = st.toggle("Patient Plain-English Mode",
                                   help="Converts clinical jargon into plain language any patient understands")
 
     st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-    analyze_btn = st.button("Run Analysis →", use_container_width=True)
+    analyze_btn = st.button("Run Analysis ->", use_container_width=True)
 
     if analyze_btn:
         all_drugs = list(drug_multiselect)
@@ -777,22 +1212,32 @@ with tab1:
         if not all_drugs: st.error("Select at least one drug."); st.stop()
 
         vcf_content = None
-        if uploaded_file:    vcf_content = uploaded_file.read().decode("utf-8", errors="replace")
-        elif chosen_file:    vcf_content = load_vcf_file(chosen_file)
-        else:                st.error("Upload a VCF file or select a test scenario."); st.stop()
+        # Check persona session state first
+        if "persona_file" in st.session_state and not uploaded_file and not chosen_file:
+            vcf_content = load_vcf_file(st.session_state["persona_file"])
+        elif uploaded_file:
+            vcf_content = uploaded_file.read().decode("utf-8", errors="replace")
+        elif chosen_file:
+            vcf_content = load_vcf_file(chosen_file)
+        else:
+            st.error("Upload a VCF file or select a test scenario."); st.stop()
 
         pid = patient_id_input.strip() or f"PG-{str(uuid.uuid4())[:8].upper()}"
-        pm_badge = '<span style="font-family:DM Mono,monospace;font-size:0.6rem;background:#7c3aed18;border:1px solid #7c3aed;color:#a78bfa;padding:3px 10px;border-radius:100px;">Patient Mode</span>' if patient_mode else ""
         st.markdown(f"""<div style="display:flex;align-items:baseline;gap:1rem;margin:2.5rem 0 1.5rem;padding-bottom:1rem;border-bottom:1px solid #1e1e1e;">
           <div style="font-family:'Instrument Serif',serif;font-size:1.75rem;color:#f0f0f0;letter-spacing:-0.02em;">Results</div>
           <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:#9ca3af;">{pid}</div>
-          {pm_badge}</div>""", unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
-        with st.spinner("Analysing…"):
+        with st.spinner("Analysing..."):
             parsed_vcf, risk_results, all_outputs, ix_report, pdf_bytes = run_pipeline(
                 vcf_content, all_drugs, pid, groq_api_key, run_interactions, generate_pdf)
 
-        render_results(all_outputs, parsed_vcf, ix_report, pdf_bytes, pid, patient_mode=patient_mode)
+        render_results(
+            all_outputs, parsed_vcf, ix_report, pdf_bytes, pid,
+            patient_mode=patient_mode,
+            groq_key=groq_api_key,
+            skip_llm=(not groq_api_key),
+        )
 
         with st.expander("VCF Parse Details", expanded=False):
             p1, p2, p3 = st.columns(3)
@@ -804,9 +1249,11 @@ with tab1:
           <div class="empty-icon">⬡</div>
           <div class="empty-title">Ready for analysis</div>
           <div class="empty-hint">
-            Upload a VCF · select drugs · run<br>
+            Click a Patient Persona above for instant demo<br>
+            Or upload a VCF · select drugs · run<br><br>
             CYP2D6 · CYP2C19 · CYP2C9 · SLCO1B1 · TPMT · DPYD<br><br>
-            v5.0 → Heatmap · Polygenic Score · Patient Mode · Chromosome Viz · Population Frequency
+            v6.0 → Risk Banner · Emergency Alerts · Gene Heatmap<br>
+            Drug Table · Interaction Matrix · AI Narrative · CPIC Badges
           </div>
         </div>""", unsafe_allow_html=True)
 
@@ -822,7 +1269,7 @@ TEST_SUITE = [
     {"name":"UltraRapid Metabolizer","file":"test_ultrarapid_metabolizer.vcf",
      "drugs":["CODEINE","CLOPIDOGREL"],
      "expected":{"CODEINE":"Toxic","CLOPIDOGREL":"Safe"},
-     "desc":"CYP2D6 *1xN/*1xN → URM → Codeine Toxic"},
+     "desc":"CYP2D6 *1xN/*1xN -> URM -> Codeine Toxic"},
     {"name":"All Normal Wild-type","file":"test_all_normal_wildtype.vcf",
      "drugs":ALL_DRUGS,
      "expected":{d:"Safe" for d in ALL_DRUGS},
@@ -850,7 +1297,7 @@ with tab2:
     st.markdown("<div style='height:1.25rem'></div>", unsafe_allow_html=True)
     tc1, tc2 = st.columns([3,1])
     with tc1: use_llm = st.checkbox("Include LLM Explanations (uses Groq API)", value=False)
-    with tc2: run_all = st.button("Run All 4 Tests →", use_container_width=True)
+    with tc2: run_all = st.button("Run All 4 Tests ->", use_container_width=True)
 
     if run_all:
         def run_one(sc):
@@ -867,26 +1314,26 @@ with tab2:
                 if not passed: ok=False
             return {"name":sc["name"],"pass":ok,"rows":rows,"outputs":ao,"file":sc["file"]}
 
-        box = st.empty(); box.info("Running all 4 scenarios in parallel…")
+        box = st.empty(); box.info("Running all 4 scenarios in parallel...")
         results = [None]*4
         with ThreadPoolExecutor(max_workers=4) as ex:
             futs = {ex.submit(run_one,sc):i for i,sc in enumerate(TEST_SUITE)}
             done = 0
             for f in as_completed(futs):
                 results[futs[f]] = f.result(); done += 1
-                box.info(f"Completed {done}/4 scenarios…")
+                box.info(f"Completed {done}/4 scenarios...")
         box.empty()
 
         passed = sum(1 for r in results if r["pass"]); failed = 4-passed
         oc = "#16a34a" if failed==0 else "#b45309"; ob = "#f0fdf4" if failed==0 else "#fffbeb"; od = "#bbf7d0" if failed==0 else "#fde68a"
         st.markdown(f"""<div style="background:{ob};border:1px solid {od};border-radius:10px;padding:1.25rem 1.5rem;margin:1.25rem 0;display:flex;align-items:center;justify-content:space-between;">
-          <div style="font-family:'Instrument Serif',serif;font-size:1.4rem;color:{oc};">{'✨ All tests passed' if failed==0 else f'{passed}/4 tests passed'}</div>
+          <div style="font-family:'Instrument Serif',serif;font-size:1.4rem;color:{oc};">{'All tests passed' if failed==0 else f'{passed}/4 tests passed'}</div>
           <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:{oc};">{passed} passed · {failed} failed · {int(passed/4*100)}%</div>
         </div>""", unsafe_allow_html=True)
 
         for sr in results:
-            sym = "✓" if sr["pass"] else "✕"
-            with st.expander(f"{sym}  {sr['name']}  —  {'PASS' if sr['pass'] else 'FAIL'}", expanded=not sr["pass"]):
+            sym = "Pass" if sr["pass"] else "Fail"
+            with st.expander(f"{sym}  {sr['name']}", expanded=not sr["pass"]):
                 rh = ""
                 for drug,got,exp,ok,ph,dp in sr["rows"]:
                     rc=RISK_CONFIG.get(got,RISK_CONFIG["Unknown"]); oc2="#16a34a" if ok else "#dc2626"; ob2="#f0fdf4" if ok else "#fef2f2"
@@ -895,7 +1342,7 @@ with tab2:
                       <div class="rt-cell"><span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:{rc['dot']};flex-shrink:0;"></span>{got}</span></div>
                       <div class="rt-cell" style="color:#9ca3af;">{exp or '—'}</div>
                       <div class="rt-cell" style="color:#6b7280;">{dp} / {ph}</div>
-                      <div class="rt-cell" style="justify-content:center;background:{ob2};color:{oc2};font-weight:700;">{sym}</div>
+                      <div class="rt-cell" style="justify-content:center;background:{ob2};color:{oc2};font-weight:700;">{'OK' if ok else 'FAIL'}</div>
                     </div>"""
                 st.markdown(f"""<div class="rt-wrap"><div class="rt-head">
                   <div class="rt-hcell">Drug</div><div class="rt-hcell">Result</div>
