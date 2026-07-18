@@ -9,7 +9,7 @@ FIXES:
 """
 
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ── Alternative drug suggestions per (drug, phenotype) ───────────────────────
@@ -128,7 +128,7 @@ def build_output_schema(
     return {
         "patient_id": patient_id,
         "drug":       drug_upper,
-        "timestamp":  datetime.utcnow().isoformat() + "Z",
+        "timestamp":  datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "risk_assessment": {
             "risk_label":       risk_label,
             "confidence_score": result.get("confidence_score", 0.0),

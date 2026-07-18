@@ -1,9 +1,9 @@
 # 🧬 SurakshaRx — Pharmacogenomic Risk Prediction System
 
-> RIFT 2026 Hackathon | Pharmacogenomics / Explainable AI Track | **v9.3**
+> RIFT 2026 Hackathon | Pharmacogenomics / Explainable AI Track | **v10.0**
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://pharmaguard-mkmkwjxgblr9fx4mwx9jdc.streamlit.app/)
-[![Demo Video](https://img.shields.io/badge/Demo-Video-blue)](https://drive.google.com/file/d/18WjSPht0pKze7wOy1dfxRyiE7ehmId7h/view?usp=sharing)
+[![Demo Video](https://img.shields.io/badge/Demo-Video-blue)](https://drive.google.com/file/d/1JGpvu2KgMW0KmkMa3ot3NsQAi3XPAP3L/view?usp=sharing)
 [![GitHub](https://img.shields.io/badge/GitHub-SurakshaRx-black)](https://github.com/Farbricated/SurakshaRx)
 [![CPIC](https://img.shields.io/badge/CPIC-Aligned-orange)](https://cpicpgx.org)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
@@ -11,7 +11,7 @@
 
 ## 🔗 Links
 - **Live Demo:** https://pharmaguard-mkmkwjxgblr9fx4mwx9jdc.streamlit.app/
-- **Demo Video:** https://drive.google.com/file/d/18WjSPht0pKze7wOy1dfxRyiE7ehmId7h/view?usp=sharing
+- **Demo Video:** https://drive.google.com/file/d/1JGpvu2KgMW0KmkMa3ot3NsQAi3XPAP3L/view?usp=sharing
 - **GitHub:** https://github.com/Farbricated/SurakshaRx
 
 ---
@@ -30,7 +30,7 @@ All powered by CPIC guidelines (the gold standard in clinical pharmacogenomics) 
 
 ---
 
-## ✨ Current Features (v9.3)
+## ✨ Current Features (v10.0)
 
 ### Core Analysis Engine
 | Feature | Description |
@@ -117,7 +117,7 @@ PDF Report (pdf_report.py)
   • fpdf2 clinical report with Unicode → ASCII sanitisation
   • Per-drug: risk, variants table, CPIC recommendation, AI explanation
         ↓
-Streamlit UI (app.py v9.3) — All visual features + UX fixes
+Streamlit UI (app.py v10.0) — All visual features + UX fixes
   • Polygenic Risk Score gauge
   • Drug × Gene Heatmap
   • Chromosome Visualisation
@@ -332,7 +332,14 @@ alts      = result["clinical_recommendation"]["alternative_drugs"]
 
 ## 🆕 Changelog
 
-### v9.3 (Current)
+### v10.0 (Current)
+- 🎨 **UI/UX REDESIGN:** Complete overhaul to a modern dark glassmorphism theme (blurs, gradients, glowing borders).
+- 🐛 **BUG FIX:** Fixed file handle leak in `load_vcf()` by implementing context managers.
+- 🐛 **BUG FIX:** Fixed unclosed HTML divs in drug card rendering that caused DOM structure issues.
+- 🐛 **BUG FIX:** Fixed `datetime.utcnow()` deprecation warnings in `app.py`, `schema.py`, and `pdf_report.py`.
+- 📝 **BRAND FIX:** Corrected navigation header to display `SurakshaRx` instead of `PharmaGuard`.
+
+### v9.3
 - 🐛 **UI FIX:** File uploader label visible (was "collapsed"), preventing overlap with scenario selectbox
 - 🐛 **UI FIX:** Selectbox label explicitly set to "visible" for clear visual hierarchy
 - 🐛 **UI FIX:** File size display corrected (was showing KB as MB)

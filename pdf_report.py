@@ -5,7 +5,7 @@ FIXED: Replaced all Unicode special characters (en-dash, em-dash, etc.)
 """
 
 from fpdf import FPDF
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 
 RISK_COLORS = {
@@ -71,7 +71,7 @@ class SurakshaRxPDF(FPDF):
         self.set_font("Helvetica", "", 8)
         self.set_text_color(148, 163, 184)
         self.set_xy(10, 14)
-        self.cell(0, 6, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | RIFT 2026 | v5.0", ln=True)
+        self.cell(0, 6, f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} | RIFT 2026 | v5.0", ln=True)
         self.ln(8)
 
     def footer(self):
@@ -140,7 +140,7 @@ def generate_pdf_report(patient_id: str, all_outputs: List[Dict], parsed_vcf: Di
     pdf.cell(60, 7, f"Genes Analyzed: {len(parsed_vcf.get('detected_genes', []))}/6", ln=False)
     pdf.cell(0,  7, f"Drugs Evaluated: {len(all_outputs)}", ln=True)
     pdf.set_x(18)
-    pdf.cell(0,  7, f"Variants Detected: {parsed_vcf.get('total_variants', 0)}  |  Report Date: {datetime.utcnow().strftime('%B %d, %Y')}", ln=True)
+    pdf.cell(0,  7, f"Variants Detected: {parsed_vcf.get('total_variants', 0)}  |  Report Date: {datetime.now(timezone.utc).strftime('%B %d, %Y')}", ln=True)
     pdf.ln(6)
 
     # Genomic profile summary
